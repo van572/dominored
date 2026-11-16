@@ -1,0 +1,2543 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>NetDomino — Dominó Educativo de Redes LAN</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --wood-dark: #0f1014;
+      --wood-mid: #1a1c23;
+      --wood-grain: rgba(255, 255, 255, 0.03);
+      --tile-border: #e2e8f0;
+      --tile-inner: #334155;
+      --accent-cyan: #38bdf8;
+      --accent-amber: #fbbf24;
+      --accent-emerald: #34d399;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background-color: #07090e;
+      color: #f8fafc;
+      overflow-x: hidden;
+      min-height: 100dvh;
+    }
+
+    .font-mono-tech {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Fondo tipo tapete de ingeniería de redes */
+    .network-felt {
+      background-color: #090d16;
+      background-image:
+        radial-gradient(circle at 50% 42%, rgba(14, 165, 233, 0.11) 0%, rgba(15, 23, 42, 0.5) 55%, rgba(3, 7, 18, 0.96) 100%),
+        linear-gradient(rgba(56, 189, 248, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(56, 189, 248, 0.04) 1px, transparent 1px);
+      background-size: 100% 100%, 32px 32px, 32px 32px;
+    }
+
+    /* Acabado de ficha de madera oscura / ébano con veta sutil y borde claro */
+    .domino-tile {
+      position: relative;
+      background:
+        repeating-linear-gradient(
+          92deg,
+          rgba(255, 255, 255, 0.015) 0px,
+          rgba(255, 255, 255, 0.015) 2px,
+          transparent 2px,
+          transparent 7px
+        ),
+        linear-gradient(145deg, #20232c 0%, #111318 55%, #090a0d 100%);
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      box-shadow:
+        0 6px 0 #020305,
+        0 10px 18px rgba(0, 0, 0, 0.72),
+        inset 0 1px 0 rgba(255, 255, 255, 0.22),
+        inset 0 -2px 4px rgba(0, 0, 0, 0.8);
+      transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+                  box-shadow 0.24s ease,
+                  border-color 0.24s ease;
+    }
+
+    .domino-tile-horizontal {
+      display: flex;
+      flex-direction: row;
+      width: 152px;
+      height: 76px;
+    }
+
+    .domino-tile-vertical {
+      display: flex;
+      flex-direction: column;
+      width: 78px;
+      height: 154px;
+    }
+
+    /* Divisor central metálico/marfil con remache */
+    .domino-divider-h {
+      width: 2px;
+      height: 76%;
+      align-self: center;
+      background: linear-gradient(180deg, transparent, #cbd5e1 20%, #f8fafc 50%, #cbd5e1 80%, transparent);
+      position: relative;
+      flex-shrink: 0;
+    }
+    .domino-divider-h::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 7px;
+      height: 7px;
+      transform: translate(-50%, -50%);
+      border-radius: 9999px;
+      background: radial-gradient(circle at 30% 30%, #ffffff, #94a3b8);
+      box-shadow: 0 0 4px rgba(255, 255, 255, 0.6);
+    }
+
+    .domino-divider-v {
+      height: 2px;
+      width: 76%;
+      align-self: center;
+      background: linear-gradient(90deg, transparent, #cbd5e1 20%, #f8fafc 50%, #cbd5e1 80%, transparent);
+      position: relative;
+      flex-shrink: 0;
+    }
+    .domino-divider-v::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 7px;
+      height: 7px;
+      transform: translate(-50%, -50%);
+      border-radius: 9999px;
+      background: radial-gradient(circle at 30% 30%, #ffffff, #94a3b8);
+      box-shadow: 0 0 4px rgba(255, 255, 255, 0.6);
+    }
+
+    /* Estados de ficha en mano */
+    .hand-tile {
+      cursor: pointer;
+    }
+    .hand-tile.playable {
+      border-color: #38bdf8;
+      box-shadow:
+        0 6px 0 #031525,
+        0 0 18px rgba(56, 189, 248, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    }
+    .hand-tile.playable:hover {
+      transform: translateY(-10px) scale(1.04);
+      border-color: #7dd3fc;
+      box-shadow:
+        0 14px 0 #031525,
+        0 18px 25px rgba(56, 189, 248, 0.45),
+        inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    }
+    .hand-tile.selected {
+      transform: translateY(-14px) scale(1.06);
+      border-color: #fbbf24 !important;
+      box-shadow:
+        0 16px 0 #291802,
+        0 0 26px rgba(251, 191, 36, 0.65),
+        inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
+      z-index: 20;
+    }
+    .hand-tile.disabled {
+      opacity: 0.58;
+      cursor: not-allowed;
+      filter: saturate(0.6);
+    }
+
+    /* Animaciones de reparto y encaje magnético */
+    @keyframes dealPop {
+      0% {
+        opacity: 0;
+        transform: translateY(-45px) scale(0.65) rotate(-8deg);
+      }
+      70% {
+        opacity: 1;
+        transform: translateY(4px) scale(1.02) rotate(1deg);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1) rotate(0deg);
+      }
+    }
+
+    @keyframes magneticSnap {
+      0% {
+        transform: scale(1.24);
+        box-shadow: 0 0 36px rgba(52, 211, 153, 0.95), 0 0 0 4px rgba(52, 211, 153, 0.6);
+        border-color: #34d399;
+      }
+      60% {
+        transform: scale(0.97);
+        box-shadow: 0 0 22px rgba(56, 189, 248, 0.75);
+      }
+      100% {
+        transform: scale(1);
+        border-color: #e2e8f0;
+      }
+    }
+
+    @keyframes targetPulse {
+      0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.55);
+      }
+      50% {
+        transform: scale(1.04);
+        box-shadow: 0 0 0 10px rgba(251, 191, 36, 0);
+      }
+    }
+
+    .anim-deal {
+      animation: dealPop 0.42s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+    }
+
+    .anim-snap {
+      animation: magneticSnap 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .drop-zone-active {
+      animation: targetPulse 1.35s infinite;
+      border: 2px dashed #fbbf24;
+      background: rgba(251, 191, 36, 0.14);
+      cursor: pointer;
+    }
+    .drop-zone-active:hover {
+      background: rgba(251, 191, 36, 0.28);
+      transform: scale(1.06);
+    }
+
+    /* Dorso de ficha para oponentes y pozo */
+    .tile-back {
+      background:
+        radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.18), transparent 70%),
+        linear-gradient(145deg, #1e293b, #090d16);
+      border: 1.5px solid #cbd5e1;
+      border-radius: 6px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+    }
+
+    /* Barra de desplazamiento limpia */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.5);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.35);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(56, 189, 248, 0.6);
+    }
+
+    @media (max-width: 640px) {
+      .domino-tile-horizontal {
+        width: 126px;
+        height: 64px;
+        border-radius: 10px;
+      }
+      .domino-tile-vertical {
+        width: 66px;
+        height: 128px;
+        border-radius: 10px;
+      }
+    }
+  </style>
+</head>
+<body class="network-felt flex flex-col justify-between">
+
+  <!-- CANVAS DE CONFETI / PARTÍCULAS DE VICTORIA -->
+  <canvas id="confetti-canvas" class="fixed inset-0 pointer-events-none z-50"></canvas>
+
+  <!-- CONTENEDOR DE NOTIFICACIONES TOAST -->
+  <div id="toast-container" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none w-11/12 max-w-md"></div>
+
+  <!-- BARRA SUPERIOR DE NAVEGACIÓN Y ESTADO -->
+  <header class="w-full border-b border-slate-800/90 bg-slate-950/85 backdrop-blur-md px-3 sm:px-6 py-2.5 flex items-center justify-between gap-2 z-30 sticky top-0">
+    <div class="flex items-center gap-2.5">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20 border border-sky-300/40">
+        <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <rect x="2" y="6" width="20" height="12" rx="3" />
+          <line x1="12" y1="6" x2="12" y2="18" />
+          <circle cx="7" cy="12" r="1.8" fill="currentColor" />
+          <circle cx="17" cy="12" r="1.8" fill="currentColor" />
+        </svg>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="font-bold text-base sm:text-lg tracking-tight text-white leading-none">NetDomino</h1>
+          <span class="hidden sm:inline-block text-[10px] font-mono-tech uppercase tracking-wider px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-300 border border-sky-500/30">LAN Edition • 28 Fichas</span>
+        </div>
+        <p id="header-subtitle" class="text-[11px] text-slate-400 font-mono-tech">Circuito Cerrado de Redes</p>
+      </div>
+    </div>
+
+    <!-- Indicador de Sala Activa (visible en partida) -->
+    <div id="header-room-badge" class="hidden items-center gap-2 bg-slate-900/90 border border-slate-700 rounded-xl px-2.5 py-1">
+      <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+      <span class="text-xs text-slate-400 hidden md:inline">Sala:</span>
+      <span id="header-room-code" class="font-mono-tech font-bold text-xs sm:text-sm text-sky-300 tracking-wider">----</span>
+      <button onclick="copyInviteLink()" title="Copiar enlace de invitación LAN" class="p-1 rounded-lg hover:bg-slate-800 text-slate-300 hover:text-white transition">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Botones de Utilidad -->
+    <div class="flex items-center gap-1.5 sm:gap-2">
+      <button onclick="openGlossaryModal()" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs sm:text-sm font-medium text-sky-300 transition" title="Ver los 28 conceptos e iconos">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+        </svg>
+        <span class="hidden sm:inline">Glosario (28)</span>
+      </button>
+
+      <button onclick="openRulesModal()" class="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white transition" title="Reglas del juego">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+      </button>
+
+      <button id="sound-toggle-btn" onclick="toggleSound()" class="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white transition" title="Silenciar / Activar sonido">
+        <svg id="sound-icon-on" class="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+        </svg>
+        <svg id="sound-icon-off" class="w-4 h-4 text-rose-400 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <line x1="23" y1="9" x2="17" y2="15"></line>
+          <line x1="17" y1="9" x2="23" y2="15"></line>
+        </svg>
+      </button>
+
+      <button id="leave-room-btn" onclick="confirmLeaveRoom()" class="hidden px-2.5 py-1.5 rounded-xl bg-rose-950/70 hover:bg-rose-900/80 border border-rose-800/70 text-xs font-medium text-rose-200 transition">
+        Salir
+      </button>
+    </div>
+  </header>
+
+  <!-- ===================================================================== -->
+  <!-- PANTALLA 1: LOBBY PRINCIPAL Y SALAS LAN                               -->
+  <!-- ===================================================================== -->
+  <main id="lobby-screen" class="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 max-w-5xl mx-auto w-full gap-6">
+    <!-- Hero compacto -->
+    <div class="text-center max-w-2xl space-y-2">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900/90 border border-slate-700/80 text-xs font-mono-tech text-sky-300">
+        <span class="w-2 h-2 rounded-full bg-sky-400 animate-ping"></span>
+        <span>28 Conceptos en Circuito Cerrado • 2 a 4 Jugadores</span>
+      </div>
+      <h2 class="text-2xl sm:text-4xl font-bold tracking-tight text-white">
+        Conecta la Red, <span class="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-cyan-300 to-amber-300">Domina cada Nodo</span>
+      </h2>
+      <p class="text-sm sm:text-base text-slate-400">
+        Empareja cada icono de infraestructura y protocolos con su concepto técnico correspondiente. Crea una mesa LAN para dispositivos en tu Wi-Fi o entrena contra bots.
+      </p>
+    </div>
+
+    <!-- Vista de Configuración Inicial vs Sala de Espera -->
+    <div id="lobby-setup-cards" class="grid grid-cols-1 md:grid-cols-2 gap-5 w-full">
+      <!-- Tarjeta 1: Identidad + Crear Mesa -->
+      <div class="bg-slate-900/85 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-2xl flex flex-col justify-between gap-5 backdrop-blur-sm">
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono-tech uppercase tracking-wider text-sky-400 font-bold">Paso 1 • Tu Perfil de Nodo</span>
+            <span class="text-xs text-slate-500 font-mono-tech">HOST / CLIENTE</span>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">Nombre de Jugador / Alias</label>
+            <input id="player-name-input" type="text" maxlength="16" placeholder="Ej. Admin_Red"
+              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 focus:border-sky-400 focus:outline-none text-white font-medium text-sm" />
+          </div>
+
+          <div class="pt-2 border-t border-slate-800/80">
+            <span class="text-xs font-mono-tech uppercase tracking-wider text-emerald-400 font-bold block mb-3">Crear Nueva Mesa Virtual</span>
+
+            <div class="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <label class="block text-xs text-slate-400 mb-1">Capacidad de Mesa</label>
+                <select id="max-players-select" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:border-sky-400 focus:outline-none">
+                  <option value="2">2 Jugadores (14 pozo)</option>
+                  <option value="3">3 Jugadores (7 pozo)</option>
+                  <option value="4" selected>4 Jugadores (0 pozo)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs text-slate-400 mb-1">Pistas Visuales</label>
+                <select id="hint-mode-select" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-sm text-white focus:border-sky-400 focus:outline-none">
+                  <option value="standard" selected>Estándar (Solo Icono)</option>
+                  <option value="learning">Aprendizaje (Con etiqueta)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-2.5">
+          <button onclick="createLanRoom()" class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold text-sm shadow-lg shadow-sky-500/25 transition flex items-center justify-center gap-2">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+              <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+              <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+              <line x1="12" y1="20" x2="12.01" y2="20"></line>
+            </svg>
+            Crear Sala Multijugador (LAN / Wi-Fi)
+          </button>
+
+          <button onclick="startQuickBotMatch()" class="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600/80 text-amber-300 font-semibold text-sm transition flex items-center justify-center gap-2">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <rect x="3" y="11" width="18" height="10" rx="2"></rect>
+              <circle cx="12" cy="5" r="2"></circle>
+              <path d="M12 7v4"></path>
+              <line x1="8" y1="16" x2="8" y2="16"></line>
+              <line x1="16" y1="16" x2="16" y2="16"></line>
+            </svg>
+            Partida Rápida vs Bots IA (Sin Esperar)
+          </button>
+        </div>
+      </div>
+
+      <!-- Tarjeta 2: Unirse a Sala LAN Existente + Vista Previa de Ficha -->
+      <div class="bg-slate-900/85 border border-slate-800 rounded-2xl p-5 sm:p-6 shadow-2xl flex flex-col justify-between gap-5 backdrop-blur-sm">
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono-tech uppercase tracking-wider text-amber-400 font-bold">Unirse a una Mesa LAN</span>
+            <span class="text-xs text-slate-500 font-mono-tech">CÓDIGO DE 4 DÍGITOS</span>
+          </div>
+
+          <p class="text-xs text-slate-400 leading-relaxed">
+            Si otro jugador creó una partida en tu red local Wi-Fi o en otra pestaña, introduce el código de sala (ej. <span class="font-mono-tech text-sky-300">NET-4821</span>) o abre su enlace directo.
+          </p>
+
+          <div class="flex gap-2">
+            <div class="relative flex-1">
+              <span class="absolute left-3.5 top-1/2 -translate-y-1/2 font-mono-tech text-slate-500 font-bold text-sm">NET-</span>
+              <input id="join-code-input" type="text" maxlength="4" placeholder="4821"
+                class="w-full pl-14 pr-3 py-3 rounded-xl bg-slate-950 border border-slate-700 focus:border-amber-400 focus:outline-none text-white font-mono-tech font-bold text-lg tracking-widest uppercase" />
+            </div>
+            <button onclick="joinLanRoom()" class="px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm shadow-lg shadow-amber-500/20 transition">
+              Conectar
+            </button>
+          </div>
+        </div>
+
+        <!-- Ejemplo interactivo de cómo funciona una ficha -->
+        <div class="bg-slate-950/90 border border-slate-800 rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-mono-tech uppercase text-slate-400">Ejemplo de Mecánica de Ficha</span>
+            <span class="text-[11px] text-sky-400 font-mono-tech">Icono (i) | Texto (i+1)</span>
+          </div>
+          <div class="flex items-center justify-center gap-2 py-1 overflow-x-auto">
+            <!-- Ficha ejemplo 1 -->
+            <div class="domino-tile domino-tile-horizontal scale-90 shrink-0">
+              <div class="w-1/2 h-full flex flex-col items-center justify-center p-1.5 text-sky-300">
+                <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+                  <ellipse cx="12" cy="7" rx="8" ry="3.5"></ellipse>
+                  <path d="M4 7v6c0 1.9 3.6 3.5 8 3.5s8-1.6 8-3.5V7"></path>
+                  <path d="M8 7l8 0M12 4.5v5" stroke-width="1.5"></path>
+                </svg>
+                <span class="text-[9px] font-mono-tech text-slate-400 mt-0.5">Router</span>
+              </div>
+              <div class="domino-divider-h"></div>
+              <div class="w-1/2 h-full flex items-center justify-center p-1.5 text-center">
+                <span class="font-mono-tech font-bold text-[11px] leading-tight text-amber-200">Switch</span>
+              </div>
+            </div>
+
+            <span class="text-emerald-400 font-bold text-lg">⇄</span>
+
+            <!-- Ficha ejemplo 2 -->
+            <div class="domino-tile domino-tile-horizontal scale-90 shrink-0 border-emerald-400">
+              <div class="w-1/2 h-full flex flex-col items-center justify-center p-1.5 text-emerald-300">
+                <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+                  <rect x="2" y="7" width="20" height="10" rx="2"></rect>
+                  <path d="M6 11h2M10 11h2M14 11h2M18 11h0.01M6 14h2M10 14h2M14 14h2"></path>
+                </svg>
+                <span class="text-[9px] font-mono-tech text-slate-400 mt-0.5">Switch</span>
+              </div>
+              <div class="domino-divider-h"></div>
+              <div class="w-1/2 h-full flex items-center justify-center p-1.5 text-center">
+                <span class="font-mono-tech font-bold text-[11px] leading-tight text-slate-100">Firewall</span>
+              </div>
+            </div>
+          </div>
+          <p class="text-[11px] text-slate-400 text-center">
+            Conecta el texto <strong class="text-amber-200">"Switch"</strong> con el icono del <strong class="text-emerald-300">Switch</strong> para extender la topología.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SALA DE ESPERA DEL LOBBY (Cuando ya se creó o unió a una sala) -->
+    <div id="waiting-room-panel" class="hidden w-full max-w-2xl bg-slate-900/90 border border-slate-700 rounded-2xl p-5 sm:p-7 shadow-2xl space-y-5 backdrop-blur-md">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+        <div>
+          <span class="text-xs font-mono-tech uppercase text-emerald-400 font-bold">● Sala LAN Activa</span>
+          <h3 class="text-xl font-bold text-white mt-0.5">Esperando Nodos de la Red...</h3>
+          <p class="text-xs text-slate-400">Comparte el código o enlace con los dispositivos en tu Wi-Fi.</p>
+        </div>
+        <div class="flex items-center gap-2 bg-slate-950 border border-sky-500/40 rounded-xl px-4 py-2.5">
+          <div>
+            <div class="text-[10px] font-mono-tech text-slate-400 uppercase">Código de Sala</div>
+            <div id="lobby-room-code-display" class="font-mono-tech font-extrabold text-xl text-sky-300 tracking-widest">NET-0000</div>
+          </div>
+          <button onclick="copyInviteLink()" class="ml-2 px-3 py-2 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/40 text-sky-200 text-xs font-semibold transition">
+            Copiar Enlace
+          </button>
+        </div>
+      </div>
+
+      <!-- Lista de asientos / jugadores conectados -->
+      <div class="space-y-2.5">
+        <div class="flex items-center justify-between text-xs text-slate-400 font-mono-tech">
+          <span>JUGADORES CONECTADOS</span>
+          <span id="lobby-seat-counter">1 / 4</span>
+        </div>
+        <div id="lobby-players-list" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <!-- Renderizado dinámicamente -->
+        </div>
+      </div>
+
+      <!-- Controles del Host -->
+      <div id="host-lobby-controls" class="pt-3 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <button id="add-bot-btn" onclick="addBotToLobby()" class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-amber-300 text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-2">
+          <span>+ Añadir Bot IA</span>
+        </button>
+
+        <button id="start-match-btn" onclick="hostStartMatch()" class="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-extrabold text-sm shadow-lg shadow-emerald-500/25 transition">
+          Repartir Fichas e Iniciar Partida
+        </button>
+      </div>
+
+      <div id="client-waiting-msg" class="hidden text-center py-2 text-xs font-mono-tech text-sky-300 animate-pulse">
+        Esperando a que el anfitrión (Host) inicie el reparto de fichas...
+      </div>
+    </div>
+  </main>
+
+  <!-- ===================================================================== -->
+  <!-- PANTALLA 2: MESA DE JUEGO ACTIVA                                      -->
+  <!-- ===================================================================== -->
+  <section id="game-screen" class="hidden flex-1 flex flex-col justify-between overflow-hidden relative">
+
+    <!-- PANEL SUPERIOR DE JUGADORES, MARCADOR Y POZO -->
+    <div class="w-full px-3 sm:px-6 pt-2.5 pb-1.5 flex flex-wrap items-center justify-between gap-2 z-20">
+      <!-- Tarjetas de Jugadores -->
+      <div id="scoreboard-bar" class="flex items-center gap-2 overflow-x-auto max-w-full pb-1">
+        <!-- Renderizado por JS -->
+      </div>
+
+      <!-- Indicador de Pozo (Boneyard) y Controles de Zoom -->
+      <div class="flex items-center gap-2 ml-auto">
+        <div id="boneyard-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-700 text-xs">
+          <div class="w-4 h-6 tile-back flex items-center justify-center text-[8px] font-mono-tech text-sky-400">N</div>
+          <div>
+            <span class="text-slate-400">Pozo:</span>
+            <span id="boneyard-count" class="font-mono-tech font-bold text-white ml-1">0</span>
+          </div>
+        </div>
+
+        <div class="flex items-center bg-slate-900/90 border border-slate-700 rounded-xl overflow-hidden">
+          <button onclick="adjustBoardZoom(-0.1)" class="px-2.5 py-1.5 hover:bg-slate-800 text-slate-300 font-mono-tech text-sm" title="Alejar tablero">−</button>
+          <span id="zoom-level-label" class="px-1.5 text-[11px] font-mono-tech text-slate-400">100%</span>
+          <button onclick="adjustBoardZoom(0.1)" class="px-2.5 py-1.5 hover:bg-slate-800 text-slate-300 font-mono-tech text-sm" title="Acercar tablero">+</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- BANNER DE ESTADO DE TURNO Y EXTREMOS ABIERTOS -->
+    <div class="px-3 sm:px-6 py-1 flex flex-col sm:flex-row items-center justify-between gap-2 z-20">
+      <div id="turn-banner" class="px-4 py-1.5 rounded-full bg-slate-900/95 border border-sky-500/40 text-xs sm:text-sm font-medium flex items-center gap-2 shadow-lg">
+        <span id="turn-indicator-dot" class="w-2.5 h-2.5 rounded-full bg-sky-400 animate-ping"></span>
+        <span id="turn-banner-text" class="text-slate-100">Preparando mesa...</span>
+      </div>
+
+      <!-- Extremos requeridos actualmente -->
+      <div id="open-ends-bar" class="hidden items-center gap-2 text-[11px] font-mono-tech bg-slate-950/85 border border-slate-800 px-3 py-1 rounded-full">
+        <span class="text-slate-400">Extremo Izq:</span>
+        <span id="left-target-label" class="text-sky-300 font-bold">---</span>
+        <span class="text-slate-600">|</span>
+        <span class="text-slate-400">Extremo Der:</span>
+        <span id="right-target-label" class="text-amber-300 font-bold">---</span>
+      </div>
+    </div>
+
+    <!-- ÁREA CENTRAL: TABLERO DE DOMINÓ EN SERPIENTE RESPONSIVA -->
+    <div id="board-viewport" class="flex-1 w-full overflow-auto flex items-center justify-center p-4 sm:p-6 relative min-h-[260px]">
+      <!-- Mensaje cuando el tablero está vacío -->
+      <div id="empty-board-prompt" class="text-center p-6 rounded-2xl border-2 border-dashed border-slate-700/80 bg-slate-900/40 max-w-sm">
+        <p class="text-sm font-semibold text-slate-200">Mesa Lista para Iniciar</p>
+        <p class="text-xs text-slate-400 mt-1">El primer jugador debe colocar cualquier ficha en el centro para abrir el circuito.</p>
+      </div>
+
+      <!-- Contenedor escalable de la cadena de fichas -->
+      <div id="board-chain-wrapper" class="transition-transform duration-200 origin-center flex flex-col items-center justify-center gap-3">
+        <!-- Filas en serpiente renderizadas por JS -->
+      </div>
+    </div>
+
+    <!-- DOCK INFERIOR: MANO DEL JUGADOR LOCAL Y ACCIONES -->
+    <div class="w-full bg-slate-950/92 border-t border-slate-800/95 backdrop-blur-lg px-3 sm:px-6 pt-2.5 pb-4 z-30 shadow-[0_-10px_30px_rgba(0,0,0,0.65)]">
+      <div class="max-w-6xl mx-auto flex flex-col gap-2">
+        <!-- Barra de acciones rápidas (Robar, Pasar, Pista) -->
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-mono-tech uppercase tracking-wider text-slate-400">Tu Mano</span>
+            <span id="my-hand-count" class="px-2 py-0.5 rounded-full bg-slate-800 text-xs font-mono-tech text-sky-300 font-bold">0</span>
+            <span id="selected-tile-hint" class="hidden sm:inline text-xs text-amber-300 font-medium"></span>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <!-- Toggle rápido de etiquetas de ayuda -->
+            <button id="toggle-labels-btn" onclick="toggleIconLabels()" class="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs text-slate-300 transition flex items-center gap-1.5" title="Mostrar/ocultar nombres bajo los iconos">
+              <svg class="w-3.5 h-3.5 text-sky-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              <span id="toggle-labels-text">Etiquetas: OFF</span>
+            </button>
+
+            <!-- Botón Robar del Pozo -->
+            <button id="draw-boneyard-btn" onclick="handlePlayerDraw()" class="hidden px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs sm:text-sm shadow-lg shadow-amber-500/20 transition flex items-center gap-1.5 animate-bounce">
+              <span>+ Robar del Pozo</span>
+            </button>
+
+            <!-- Botón Pasar Turno -->
+            <button id="pass-turn-btn" onclick="handlePlayerPass()" class="hidden px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-rose-600/20 transition">
+              Pasar Turno
+            </button>
+          </div>
+        </div>
+
+        <!-- Carrusel / Cuadrícula de Fichas en Mano -->
+        <div id="player-hand-container" class="flex items-center sm:justify-center gap-2.5 sm:gap-3 overflow-x-auto py-3 px-2 min-h-[104px]">
+          <!-- Renderizado por JS -->
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 1: FIN DE RONDA / VICTORIA O TRANCA                             -->
+  <!-- ===================================================================== -->
+  <div id="round-over-modal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-5 text-center relative overflow-hidden">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-slate-950 shadow-xl shadow-amber-500/30 mx-auto">
+        <svg class="w-9 h-9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path>
+          <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path>
+          <path d="M4 22h16"></path>
+          <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path>
+          <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path>
+          <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path>
+        </svg>
+      </div>
+
+      <div>
+        <span id="round-end-badge" class="text-xs font-mono-tech uppercase tracking-widest px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">¡DOMINÓ DE RED!</span>
+        <h3 id="round-winner-title" class="text-2xl font-bold text-white mt-2">Ganador de la Ronda</h3>
+        <p id="round-winner-reason" class="text-sm text-slate-400 mt-1">Se quedó sin fichas conectando toda la topología.</p>
+      </div>
+
+      <!-- Tabla de resultados de la ronda -->
+      <div id="round-standings-list" class="bg-slate-950/90 border border-slate-800 rounded-2xl p-3.5 space-y-2 text-left">
+        <!-- Renderizado por JS -->
+      </div>
+
+      <div class="flex flex-col sm:flex-row gap-3 pt-2">
+        <button id="next-round-btn" onclick="hostNextRound()" class="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-bold text-sm shadow-lg transition">
+          Siguiente Ronda
+        </button>
+        <button onclick="confirmLeaveRoom()" class="py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-sm transition">
+          Volver al Lobby
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 2: GLOSARIO VISUAL DE LOS 28 CONCEPTOS DE REDES                 -->
+  <!-- ===================================================================== -->
+  <div id="glossary-modal" class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6">
+    <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-4xl w-full max-h-[88dvh] flex flex-col shadow-2xl overflow-hidden">
+      <div class="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between gap-3">
+        <div>
+          <h3 class="text-lg sm:text-xl font-bold text-white">Glosario del Circuito Cerrado (28 Conceptos)</h3>
+          <p class="text-xs text-slate-400">Cada ficha enlaza el icono del concepto <span class="text-sky-300 font-mono-tech">[i]</span> con el texto del siguiente <span class="text-amber-300 font-mono-tech">[i+1]</span>.</p>
+        </div>
+        <button onclick="closeGlossaryModal()" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="px-4 py-2.5 bg-slate-950/60 border-b border-slate-800">
+        <input id="glossary-search" type="text" oninput="filterGlossary()" placeholder="Buscar concepto (ej. Router, DNS, VLAN, Subred, OSI...)"
+          class="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white focus:border-sky-400 focus:outline-none" />
+      </div>
+
+      <div id="glossary-grid" class="p-4 sm:p-5 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <!-- Renderizado por JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 3: REGLAS DEL JUEGO                                             -->
+  <!-- ===================================================================== -->
+  <div id="rules-modal" class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="text-lg font-bold text-white">Reglas de NetDomino</h3>
+        <button onclick="closeRulesModal()" class="p-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white">✕</button>
+      </div>
+      <ul class="space-y-2.5 text-xs sm:text-sm text-slate-300 leading-relaxed">
+        <li class="flex gap-2.5"><span class="text-sky-400 font-bold">1.</span><span><strong>Circuito de 28 Fichas:</strong> Cada ficha tiene un <em>Icono SVG</em> de un concepto de redes en una mitad y el <em>Nombre Técnico</em> del siguiente concepto en la otra mitad.</span></li>
+        <li class="flex gap-2.5"><span class="text-sky-400 font-bold">2.</span><span><strong>Emparejamiento Bidireccional:</strong> En ambos extremos abiertos del tablero puedes conectar una ficha cuyo <strong>Icono</strong> coincida con el Texto del extremo, o cuyo <strong>Texto</strong> coincida con el Icono del extremo.</span></li>
+        <li class="flex gap-2.5"><span class="text-sky-400 font-bold">3.</span><span><strong>Reparto y Pozo (2 a 4 Jugadores):</strong> Cada jugador recibe 7 fichas. En partidas de 2 o 3 jugadores, las fichas sobrantes forman el <em>Pozo</em> para robar cuando no tengas jugadas válidas.</span></li>
+        <li class="flex gap-2.5"><span class="text-sky-400 font-bold">4.</span><span><strong>Victoria y Tranca:</strong> Gana quien coloque todas sus fichas (¡Dominó!). Si nadie puede mover y el pozo está vacío (<em>Tranca</em>), gana quien tenga menos fichas restantes en su mano.</span></li>
+      </ul>
+      <button onclick="closeRulesModal()" class="w-full py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-sm transition">¡Entendido!</button>
+    </div>
+  </div>
+
+  <!-- MODAL DE CONFIRMACIÓN PARA SALIR -->
+  <div id="confirm-leave-modal" class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4 text-center">
+      <h4 class="text-lg font-bold text-white">¿Abandonar la mesa actual?</h4>
+      <p class="text-xs text-slate-400">Se desconectará tu sesión de la sala actual y volverás al menú principal.</p>
+      <div class="flex gap-2.5">
+        <button onclick="closeConfirmLeaveModal()" class="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium">Cancelar</button>
+        <button onclick="leaveRoomNow()" class="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-sm font-bold">Salir</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. BASE DE DATOS DE LOS 28 CONCEPTOS DE REDES (CIRCUITO CERRADO 0..27)
+    // =========================================================================
+    const NETWORK_CONCEPTS = [
+      {
+        id: 0,
+        name: "Router",
+        short: "Router",
+        category: "Capa 3 • Enrutamiento",
+        desc: "Dispositivo que interconecta redes distintas y dirige paquetes IP hacia su destino óptimo.",
+        svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <ellipse cx="12" cy="8" rx="9" ry="4"></ellipse>
+                <path d="M3 8v7c0 2.2 4 4 9 4s9-1.8 9-4V8"></path>
+                <path d="M8 8l8 0M12 5.5v5"></path>
+              </svg>`
+      },
+      {
+        id: 1,
+        name: "Switch",
+        short: "Switch",
+        category: "Capa 2 • Conmutación",
+        desc: "Conmutador de red local que reenvía tramas Ethernet usando direcciones MAC.",
+        svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="7" width="20" height="10" rx="2"></rect>
+                <path d="M6 10.5h2M10 10.5h2M14 10.5h2M18 10.5h.01M6 13.5h2M10 13.5h2M14 13.5h2"></path>
+              </svg>`
+      },
+      {
+        id: 2,
+        name: "Firewall",
+        short: "Firewall",
+        category: "Seguridad Perimetral",
+        desc: "Sistema de seguridad que filtra y controla el tráfico entrante y saliente según reglas.",
+        svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+                <line x1="3" y1="9" x2="21" y2="9"></line>
+                <line x1="3" y1="15" x2="21" y2="15"></line>
+                <line x1="9" y1="4" x2="9" y2="9"></line>
+                <line x1="15" y1="9" x2="15" y2="15"></line>
+                <line x1="9" y1="15" x2="9" y2="20"></line>
+              </svg>`
+      },
+      {
+        id: 3,
+        name: "Dirección IP",
+        short: "Dirección IP",
+        category: "Direccionamiento Lógico",
+        desc: "Identificador numérico único asignado a cada interfaz conectada a una red IP.",
+        svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="5" width="20" height="14" rx="3"></rect>
+                <path d="M7 9v6M11 15V9h2.5a2 2 0 0 1 0 4H11"></path>
+                <circle cx="18" cy="14.5" r="0.8" fill="currentColor"></circle>
+              </svg>`
+      },
+      {
+        id: 4,
+        name: "Servidor DNS",
+        short: "DNS",
+        category: "Resolución de Nombres",
+        desc: "Traduce nombres de dominio legibles (ej. web.org) en direcciones IP numéricas.",
+        svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9"></circle>
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <path d="M12 3a14.5 14.5 0 0 1 0 18 14.5 14.5 0 0 1 0-18"></path>
+              </svg>`
+      },
+      {
+        id: 5,
+        name: "Protocolo DHCP",
+        short: "DHCP",
+        category: "Configuración Dinámica",
+        desc: "Asigna automáticamente direcciones IP, máscara de subred y puerta de enlace a los clientes.",
+        svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="6" rx="1.5"></rect>
+                <path d="M12 9v5M7 14h10M7 14v4M17 14v4"></path>
+                <circle cx="7" cy="19.5" r="1.5"></circle>
+                <circle cx="17" cy="19.5" r="1.5"></circle>
+              </svg>`
+      },
+      {
+        id: 6,
+        name: "Modelo OSI",
+        short: "Modelo OSI",
+        category: "Arquitectura 7 Capas",
+        desc: "Marco conceptual de 7 capas que estandariza las funciones de telecomunicaciones.",
+        svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 3 21 7.5 12 12 3 7.5 12 3"></polygon>
+                <polyline points="3 12 12 16.5 21 12"></polyline>
+                <polyline points="3 16.5 12 21 21 16.5"></polyline>
+              </svg>`
+      },
+      {
+        id: 7,
+        name: "Pila TCP/IP",
+        short: "TCP/IP",
+        category: "Transporte e Internet",
+        desc: "Conjunto fundamental de protocolos que garantiza entrega confiable y enrutamiento en Internet.",
+        svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 3l4 4-4 4"></path>
+                <path d="M3 7h18"></path>
+                <path d="M7 21l-4-4 4-4"></path>
+                <path d="M21 17H3"></path>
+              </svg>`
+      },
+      {
+        id: 8,
+        name: "Fibra Óptica",
+        short: "Fibra Óptica",
+        category: "Medio Guiado Fotónico",
+        desc: "Medio de transmisión de ultra velocidad que envía pulsos de luz a través de hilos de vidrio.",
+        svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 17c4-8 8-8 12 0s5 2 6-3"></path>
+                <circle cx="3" cy="17" r="2" fill="currentColor"></circle>
+                <path d="M18 6l3-3M19 10l3-1M15 5l1-3"></path>
+              </svg>`
+      },
+      {
+        id: 9,
+        name: "Cable UTP",
+        short: "Cable UTP",
+        category: "Par Trenzado Cobre",
+        desc: "Cable de par trenzado no apantallado estándar en redes Ethernet locales (Cat5e/Cat6).",
+        svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 12c2-4 4-4 6 0s4 4 6 0 4-4 4 0"></path>
+                <path d="M4 12c2 4 4 4 6 0s4-4 6 0 4 4 4 0" opacity="0.65"></path>
+              </svg>`
+      },
+      {
+        id: 10,
+        name: "Conector RJ45",
+        short: "Conector RJ45",
+        category: "Interfaz Física 8P8C",
+        desc: "Interfaz física estándar de 8 pines utilizada para terminar cables Ethernet de par trenzado.",
+        svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="6" y="3" width="12" height="13" rx="2"></rect>
+                <path d="M9 3v4M12 3v4M15 3v4"></path>
+                <path d="M10 16v5h4v-5"></path>
+              </svg>`
+      },
+      {
+        id: 11,
+        name: "Dirección MAC",
+        short: "Dirección MAC",
+        category: "Identificador Físico",
+        desc: "Identificador hexadecimal de 48 bits grabado en el hardware de cada interfaz de red.",
+        svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+                <rect x="8" y="8" width="8" height="8" rx="1"></rect>
+                <path d="M9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2"></path>
+              </svg>`
+      },
+      {
+        id: 12,
+        name: "Subred / CIDR",
+        short: "Subred / CIDR",
+        category: "Segmentación IP",
+        desc: "División lógica de una red IP en bloques más pequeños mediante máscaras de red.",
+        svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9"></circle>
+                <line x1="12" y1="3" x2="12" y2="21"></line>
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+              </svg>`
+      },
+      {
+        id: 13,
+        name: "Gateway",
+        short: "Gateway",
+        category: "Puerta de Enlace",
+        desc: "Nodo de salida predeterminado que conecta una red local con redes externas o Internet.",
+        svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 20V7a7 7 0 0 1 14 0v13"></path>
+                <path d="M12 11v7M9 14l3-3 3 3"></path>
+              </svg>`
+      },
+      {
+        id: 14,
+        name: "Túnel VPN",
+        short: "Túnel VPN",
+        category: "Cifrado de Extremo",
+        desc: "Red Privada Virtual que crea un túnel cifrado y seguro sobre una red pública.",
+        svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 3l8 3v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-3z"></path>
+                <rect x="9.5" y="11" width="5" height="4" rx="1"></rect>
+                <path d="M10.5 11V9.5a1.5 1.5 0 0 1 3 0V11"></path>
+              </svg>`
+      },
+      {
+        id: 15,
+        name: "Wi-Fi 802.11",
+        short: "Wi-Fi",
+        category: "Acceso Inalámbrico",
+        desc: "Tecnología de interconexión inalámbrica mediante ondas de radio estándar IEEE 802.11.",
+        svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 8.82a15 15 0 0 1 20 0"></path>
+                <path d="M5 12.86a10 10 0 0 1 14 0"></path>
+                <path d="M8.5 16.43a5 5 0 0 1 7 0"></path>
+                <circle cx="12" cy="20" r="1.2" fill="currentColor"></circle>
+              </svg>`
+      },
+      {
+        id: 16,
+        name: "Servidor Proxy",
+        short: "Servidor Proxy",
+        category: "Intermediario / Caché",
+        desc: "Servidor intermediario que filtra peticiones, oculta identidades y almacena caché.",
+        svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="8" y="4" width="8" height="16" rx="2"></rect>
+                <path d="M2 12h4M18 12h4"></path>
+                <circle cx="12" cy="9" r="1" fill="currentColor"></circle>
+                <circle cx="12" cy="15" r="1" fill="currentColor"></circle>
+              </svg>`
+      },
+      {
+        id: 17,
+        name: "HTTPS / TLS",
+        short: "HTTPS / TLS",
+        category: "Web Cifrada",
+        desc: "Protocolo seguro de transferencia de hipertexto protegido con certificados TLS/SSL.",
+        svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="5" y="11" width="14" height="10" rx="2"></rect>
+                <path d="M8 11V7a4 4 0 0 1 8 0v4"></path>
+                <circle cx="12" cy="16" r="1.2" fill="currentColor"></circle>
+              </svg>`
+      },
+      {
+        id: 18,
+        name: "Latencia / Ping",
+        short: "Ping / ICMP",
+        category: "Diagnóstico de Tiempo",
+        desc: "Tiempo de ida y vuelta (RTT) medido en milisegundos mediante ecos ICMP.",
+        svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="13" r="8"></circle>
+                <polyline points="12 9 12 13 15 15"></polyline>
+                <path d="M10 2h4M12 2v3"></path>
+              </svg>`
+      },
+      {
+        id: 19,
+        name: "Topología Estrella",
+        short: "Topología Estrella",
+        category: "Diseño de Red LAN",
+        desc: "Arquitectura donde todos los nodos se conectan directamente a un concentrador central.",
+        svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <circle cx="12" cy="4" r="1.8"></circle>
+                <circle cx="19" cy="16" r="1.8"></circle>
+                <circle cx="5" cy="16" r="1.8"></circle>
+                <line x1="12" y1="9" x2="12" y2="5.8"></line>
+                <line x1="14.5" y1="13.5" x2="17.5" y2="15.2"></line>
+                <line x1="9.5" y1="13.5" x2="6.5" y2="15.2"></line>
+              </svg>`
+      },
+      {
+        id: 20,
+        name: "Ancho de Banda",
+        short: "Ancho de Banda",
+        category: "Capacidad de Canal",
+        desc: "Capacidad máxima de transferencia de datos de un enlace medida en Mbps o Gbps.",
+        svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 17a8 8 0 0 1 16 0"></path>
+                <line x1="12" y1="17" x2="16.5" y2="11.5"></line>
+                <circle cx="12" cy="17" r="1.8" fill="currentColor"></circle>
+              </svg>`
+      },
+      {
+        id: 21,
+        name: "Paquete IP",
+        short: "Paquete IP",
+        category: "Unidad de Datos",
+        desc: "Unidad estructurada de información compuesta por cabecera (origen/destino) y carga útil.",
+        svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2l9 5v10l-9 5-9-5V7l9-5z"></path>
+                <polyline points="3.3 7 12 12 20.7 7"></polyline>
+                <line x1="12" y1="22" x2="12" y2="12"></line>
+              </svg>`
+      },
+      {
+        id: 22,
+        name: "Traducción NAT",
+        short: "NAT",
+        category: "Conversión IP",
+        desc: "Mecanismo que traduce direcciones IP privadas internas en una IP pública hacia Internet.",
+        svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="6" width="6" height="4" rx="1"></rect>
+                <rect x="2" y="14" width="6" height="4" rx="1"></rect>
+                <rect x="16" y="10" width="6" height="4" rx="1"></rect>
+                <path d="M8 8l8 4M8 16l8-4"></path>
+              </svg>`
+      },
+      {
+        id: 23,
+        name: "Red VLAN",
+        short: "VLAN",
+        category: "Segmentación Capa 2",
+        desc: "Red de Área Local Virtual que aísla dominios de difusión dentro de un mismo switch físico.",
+        svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="8" height="16" rx="2"></rect>
+                <rect x="13" y="4" width="8" height="16" rx="2" stroke-dasharray="3 2"></rect>
+                <circle cx="7" cy="9" r="1.2" fill="currentColor"></circle>
+                <circle cx="17" cy="15" r="1.2" fill="currentColor"></circle>
+              </svg>`
+      },
+      {
+        id: 24,
+        name: "Cloud / Nube",
+        short: "Cloud / Nube",
+        category: "Infraestructura Remota",
+        desc: "Servicios de cómputo, almacenamiento y redes accesibles bajo demanda a través de Internet.",
+        svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path>
+              </svg>`
+      },
+      {
+        id: 25,
+        name: "Protocolo ARP",
+        short: "Protocolo ARP",
+        category: "Resolución IP → MAC",
+        desc: "Protocolo de resolución que descubre la dirección física MAC asociada a una dirección IP.",
+        svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="10.5" cy="10.5" r="6.5"></circle>
+                <line x1="15.5" y1="15.5" x2="21" y2="21"></line>
+                <path d="M8 10.5h5"></path>
+              </svg>`
+      },
+      {
+        id: 26,
+        name: "Sniffer / Analizador",
+        short: "Sniffer",
+        category: "Inspección de Tráfico",
+        desc: "Herramienta de captura y análisis de paquetes que circulan en tiempo real por la red.",
+        svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="2 12 6 12 9 5 14 19 17 12 22 12"></polyline>
+              </svg>`
+      },
+      {
+        id: 27,
+        name: "Tarjeta NIC",
+        short: "Tarjeta NIC",
+        category: "Adaptador de Red",
+        desc: "Controlador de Interfaz de Red que conecta físicamente un equipo al medio de transmisión.",
+        svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="4" y="6" width="16" height="11" rx="2"></rect>
+                <path d="M2 4v16"></path>
+                <path d="M8 17v3M12 17v3M16 17v3"></path>
+                <rect x="8" y="9" width="5" height="5" rx="0.8"></rect>
+              </svg>`
+      }
+    ];
+
+    // Genera exactamente las 28 fichas del circuito cerrado:
+    // Ficha i: Mitad A = Icono[i], Mitad B = Texto[(i + 1) % 28]
+    function buildFullDeck() {
+      const deck = [];
+      for (let i = 0; i < 28; i++) {
+        deck.push({
+          id: i,
+          iconConceptId: i,
+          textConceptId: (i + 1) % 28
+        });
+      }
+      return deck;
+    }
+
+    // =========================================================================
+    // 2. SINTETIZADOR DE AUDIO WEB AUDIO API (SIN ARCHIVOS EXTERNOS)
+    // =========================================================================
+    const SoundFX = (() => {
+      let ctx = null;
+      let muted = false;
+
+      function ensureCtx() {
+        if (!ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) ctx = new AudioCtx();
+        }
+        if (ctx && ctx.state === 'suspended') {
+          ctx.resume().catch(() => {});
+        }
+      }
+
+      function playWoodClick() {
+        if (muted) return;
+        ensureCtx();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(290, now);
+        osc.frequency.exponentialRampToValueAtTime(85, now + 0.085);
+        gain.gain.setValueAtTime(0.35, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.095);
+      }
+
+      function playDrawCard() {
+        if (muted) return;
+        ensureCtx();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(420, now);
+        osc.frequency.exponentialRampToValueAtTime(640, now + 0.09);
+        gain.gain.setValueAtTime(0.16, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.11);
+      }
+
+      function playTurnAlert() {
+        if (muted) return;
+        ensureCtx();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        [523.25, 659.25].forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.09);
+          gain.gain.setValueAtTime(0.12, now + idx * 0.09);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.09 + 0.18);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + idx * 0.09);
+          osc.stop(now + idx * 0.09 + 0.2);
+        });
+      }
+
+      function playErrorBuzz() {
+        if (muted) return;
+        ensureCtx();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(140, now);
+        osc.frequency.linearRampToValueAtTime(110, now + 0.14);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.16);
+      }
+
+      function playVictoryFanfare() {
+        if (muted) return;
+        ensureCtx();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        const notes = [523.25, 659.25, 783.99, 1046.50];
+        notes.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.11);
+          gain.gain.setValueAtTime(0.22, now + idx * 0.11);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.11 + 0.42);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + idx * 0.11);
+          osc.stop(now + idx * 0.11 + 0.45);
+        });
+      }
+
+      return {
+        playWoodClick,
+        playDrawCard,
+        playTurnAlert,
+        playErrorBuzz,
+        playVictoryFanfare,
+        toggle() {
+          muted = !muted;
+          return muted;
+        },
+        isMuted: () => muted
+      };
+    })();
+
+    // =========================================================================
+    // 3. ESTADO GLOBAL DE LA APLICACIÓN Y MOTOR DE RED LAN (PeerJS + Broadcast)
+    // =========================================================================
+    const AppState = {
+      myId: 'node_' + Math.random().toString(36).substring(2, 9),
+      myName: '',
+      isHost: false,
+      roomCode: '',
+      peer: null,
+      hostConn: null,
+      clientConns: {}, // peerId -> DataConnection
+      bc: null, // BroadcastChannel para pestañas en el mismo navegador
+      showIconLabels: false,
+      boardZoom: 1.0,
+      selectedTileId: null,
+      lastPlacedTileId: null,
+      botTimer: null,
+
+      // Estado sincronizado de la sala y partida
+      game: {
+        phase: 'lobby', // 'lobby' | 'playing' | 'roundOver'
+        maxPlayers: 4,
+        roundNumber: 1,
+        players: [], // { id, name, isBot, isHost, hand: [], score: 0 }
+        boneyard: [], // Fichas restantes
+        board: [], // Cadena de fichas jugadas: { tileId, leftHalf: {type:'icon'|'text', conceptId}, rightHalf: {type:'icon'|'text', conceptId} }
+        leftTarget: null,  // conceptId requerido en extremo izquierdo
+        rightTarget: null, // conceptId requerido en extremo derecho
+        turnIndex: 0,
+        consecutivePasses: 0,
+        roundResult: null
+      }
+    };
+
+    // Inicializar nombre aleatorio sugerido
+    document.getElementById('player-name-input').value = 'Nodo_' + Math.floor(100 + Math.random() * 899);
+
+    // Revisar si la URL contiene parámetro ?room=XXXX
+    window.addEventListener('DOMContentLoaded', () => {
+      renderGlossary();
+      const params = new URLSearchParams(window.location.search);
+      const roomParam = params.get('room');
+      if (roomParam) {
+        const cleanCode = roomParam.replace(/[^a-zA-Z0-9]/g, '').slice(-4).toUpperCase();
+        if (cleanCode.length === 4) {
+          document.getElementById('join-code-input').value = cleanCode;
+          showToast(`Código de sala NET-${cleanCode} detectado en el enlace.`, 'info');
+        }
+      }
+    });
+
+    function getSanitizedPlayerName() {
+      const raw = document.getElementById('player-name-input').value.trim();
+      return raw || ('Nodo_' + Math.floor(100 + Math.random() * 899));
+    }
+
+    function generateRoomCode() {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let code = '';
+      for (let i = 0; i < 4; i++) {
+        code += chars[Math.floor(Math.random() * chars.length)];
+      }
+      return code;
+    }
+
+    // -------------------------------------------------------------------------
+    // CONEXIÓN MULTIJUGADOR LAN (WebRTC PeerJS + BroadcastChannel)
+    // -------------------------------------------------------------------------
+    function setupBroadcastChannel(code) {
+      if (AppState.bc) AppState.bc.close();
+      if ('BroadcastChannel' in window) {
+        AppState.bc = new BroadcastChannel('netdomino_lan_' + code);
+        AppState.bc.onmessage = (ev) => {
+          const msg = ev.data;
+          if (!msg) return;
+          if (AppState.isHost) {
+            handleIncomingClientMessage(msg, (reply) => AppState.bc.postMessage(reply));
+          } else if (msg.type === 'STATE_SYNC') {
+            applySyncedGameState(msg.state);
+          }
+        };
+      }
+    }
+
+    function createLanRoom() {
+      AppState.myName = getSanitizedPlayerName();
+      AppState.isHost = true;
+      AppState.roomCode = generateRoomCode();
+      AppState.showIconLabels = document.getElementById('hint-mode-select').value === 'learning';
+      updateLabelsButtonUI();
+
+      const maxPlayers = parseInt(document.getElementById('max-players-select').value, 10) || 4;
+
+      AppState.game = {
+        phase: 'lobby',
+        maxPlayers,
+        roundNumber: 1,
+        players: [{
+          id: AppState.myId,
+          name: AppState.myName,
+          isBot: false,
+          isHost: true,
+          hand: [],
+          score: 0
+        }],
+        boneyard: [],
+        board: [],
+        leftTarget: null,
+        rightTarget: null,
+        turnIndex: 0,
+        consecutivePasses: 0,
+        roundResult: null
+      };
+
+      setupBroadcastChannel(AppState.roomCode);
+      initHostPeer(AppState.roomCode);
+      enterLobbyWaitingRoom();
+      showToast(`Sala LAN NET-${AppState.roomCode} creada. ¡Comparte el código!`, 'success');
+    }
+
+    function initHostPeer(code) {
+      if (AppState.peer) AppState.peer.destroy();
+      if (typeof Peer === 'undefined') return;
+
+      const peerId = 'NETDOMINO-LAN-' + code;
+      const peer = new Peer(peerId, { debug: 0 });
+      AppState.peer = peer;
+
+      peer.on('open', () => {
+        // Listo para recibir conexiones LAN/Wi-Fi
+      });
+
+      peer.on('connection', (conn) => {
+        conn.on('open', () => {
+          AppState.clientConns[conn.peer] = conn;
+          conn.send({ type: 'STATE_SYNC', state: AppState.game });
+        });
+
+        conn.on('data', (data) => {
+          handleIncomingClientMessage(data, (reply) => {
+            if (conn.open) conn.send(reply);
+          });
+        });
+
+        conn.on('close', () => {
+          delete AppState.clientConns[conn.peer];
+        });
+      });
+
+      peer.on('error', () => {
+        // Si PeerJS no puede conectar al servidor de señalización público, BroadcastChannel sigue operando localmente
+      });
+    }
+
+    function joinLanRoom() {
+      const code = document.getElementById('join-code-input').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (code.length !== 4) {
+        showToast('Ingresa un código de sala válido de 4 caracteres.', 'error');
+        SoundFX.playErrorBuzz();
+        return;
+      }
+
+      AppState.myName = getSanitizedPlayerName();
+      AppState.isHost = false;
+      AppState.roomCode = code;
+
+      setupBroadcastChannel(code);
+
+      // Solicitud de unión vía BroadcastChannel (mismo navegador / pestañas)
+      if (AppState.bc) {
+        AppState.bc.postMessage({
+          type: 'JOIN_REQUEST',
+          player: { id: AppState.myId, name: AppState.myName }
+        });
+      }
+
+      // Solicitud vía WebRTC PeerJS (dispositivos en red local Wi-Fi / LAN)
+      if (typeof Peer !== 'undefined') {
+        if (AppState.peer) AppState.peer.destroy();
+        const peer = new Peer({ debug: 0 });
+        AppState.peer = peer;
+
+        peer.on('open', () => {
+          const hostPeerId = 'NETDOMINO-LAN-' + code;
+          const conn = peer.connect(hostPeerId, { reliable: true });
+          AppState.hostConn = conn;
+
+          conn.on('open', () => {
+            conn.send({
+              type: 'JOIN_REQUEST',
+              player: { id: AppState.myId, name: AppState.myName }
+            });
+            showToast(`Conectado a la sala NET-${code}`, 'success');
+          });
+
+          conn.on('data', (data) => {
+            if (data && data.type === 'STATE_SYNC') {
+              applySyncedGameState(data.state);
+            } else if (data && data.type === 'ERROR_MSG') {
+              showToast(data.message, 'error');
+            }
+          });
+
+          conn.on('error', () => {
+            showToast('No se encontró el host remoto. Verificando red local...', 'error');
+          });
+        });
+      }
+
+      enterLobbyWaitingRoom();
+    }
+
+    function broadcastGameState() {
+      if (!AppState.isHost) return;
+      const payload = { type: 'STATE_SYNC', state: AppState.game };
+      if (AppState.bc) AppState.bc.postMessage(payload);
+      Object.values(AppState.clientConns).forEach(conn => {
+        if (conn && conn.open) {
+          conn.send(payload);
+        }
+      });
+    }
+
+    function sendActionToHost(actionObj) {
+      if (AppState.isHost) {
+        handleIncomingClientMessage(actionObj, () => {});
+      } else {
+        if (AppState.hostConn && AppState.hostConn.open) {
+          AppState.hostConn.send(actionObj);
+        }
+        if (AppState.bc) {
+          AppState.bc.postMessage(actionObj);
+        }
+      }
+    }
+
+    function handleIncomingClientMessage(msg, replyFn) {
+      if (!AppState.isHost || !msg) return;
+
+      if (msg.type === 'JOIN_REQUEST') {
+        const exists = AppState.game.players.find(p => p.id === msg.player.id);
+        if (!exists) {
+          if (AppState.game.phase !== 'lobby') {
+            replyFn({ type: 'ERROR_MSG', message: 'La partida ya está en curso.' });
+            return;
+          }
+          if (AppState.game.players.length >= AppState.game.maxPlayers) {
+            replyFn({ type: 'ERROR_MSG', message: 'La sala ya está llena.' });
+            return;
+          }
+          AppState.game.players.push({
+            id: msg.player.id,
+            name: msg.player.name,
+            isBot: false,
+            isHost: false,
+            hand: [],
+            score: 0
+          });
+          showToast(`${msg.player.name} se unió a la mesa.`, 'info');
+          SoundFX.playDrawCard();
+        }
+        renderLobbyPlayers();
+        broadcastGameState();
+      }
+      else if (msg.type === 'PLAY_TILE') {
+        processPlayTile(msg.playerId, msg.tileId, msg.side);
+      }
+      else if (msg.type === 'DRAW_TILE') {
+        processDrawTile(msg.playerId);
+      }
+      else if (msg.type === 'PASS_TURN') {
+        processPassTurn(msg.playerId);
+      }
+    }
+
+    function applySyncedGameState(newState) {
+      const prevPhase = AppState.game.phase;
+      const prevBoardLen = AppState.game.board.length;
+      const prevTurn = AppState.game.turnIndex;
+
+      AppState.game = newState;
+
+      if (newState.board.length > prevBoardLen && newState.board.length > 0) {
+        SoundFX.playWoodClick();
+      }
+
+      if (newState.phase === 'lobby') {
+        enterLobbyWaitingRoom();
+        renderLobbyPlayers();
+      } else if (newState.phase === 'playing') {
+        if (prevPhase !== 'playing') {
+          switchToGameScreen();
+        }
+        renderGameScreen();
+        const activePlayer = newState.players[newState.turnIndex];
+        if (activePlayer && activePlayer.id === AppState.myId && prevTurn !== newState.turnIndex) {
+          SoundFX.playTurnAlert();
+        }
+      } else if (newState.phase === 'roundOver') {
+        switchToGameScreen();
+        renderGameScreen();
+        showRoundOverModal();
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // LOBBY Y CONFIGURACIÓN DE PARTIDA
+    // -------------------------------------------------------------------------
+    function enterLobbyWaitingRoom() {
+      document.getElementById('lobby-setup-cards').classList.add('hidden');
+      document.getElementById('waiting-room-panel').classList.remove('hidden');
+      document.getElementById('header-room-badge').classList.remove('hidden');
+      document.getElementById('header-room-badge').classList.add('flex');
+      document.getElementById('leave-room-btn').classList.remove('hidden');
+
+      const fullCode = 'NET-' + AppState.roomCode;
+      document.getElementById('header-room-code').textContent = fullCode;
+      document.getElementById('lobby-room-code-display').textContent = fullCode;
+
+      if (AppState.isHost) {
+        document.getElementById('host-lobby-controls').classList.remove('hidden');
+        document.getElementById('client-waiting-msg').classList.add('hidden');
+      } else {
+        document.getElementById('host-lobby-controls').classList.add('hidden');
+        document.getElementById('client-waiting-msg').classList.remove('hidden');
+      }
+
+      renderLobbyPlayers();
+    }
+
+    function renderLobbyPlayers() {
+      const listEl = document.getElementById('lobby-players-list');
+      const counterEl = document.getElementById('lobby-seat-counter');
+      const g = AppState.game;
+
+      counterEl.textContent = `${g.players.length} / ${g.maxPlayers}`;
+      listEl.innerHTML = '';
+
+      for (let i = 0; i < g.maxPlayers; i++) {
+        const p = g.players[i];
+        const card = document.createElement('div');
+        if (p) {
+          card.className = 'flex items-center justify-between p-3 rounded-xl bg-slate-950 border border-slate-700';
+          card.innerHTML = `
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-lg ${p.isBot ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' : 'bg-sky-500/20 text-sky-300 border-sky-500/40'} border flex items-center justify-center font-mono-tech font-bold text-xs">
+                ${p.isBot ? 'IA' : 'P' + (i + 1)}
+              </div>
+              <div>
+                <div class="text-sm font-bold text-white flex items-center gap-1.5">
+                  <span>${escapeHtml(p.name)}</span>
+                  ${p.isHost ? '<span class="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-mono-tech">HOST</span>' : ''}
+                </div>
+                <div class="text-[11px] text-slate-400 font-mono-tech">${p.isBot ? 'Bot Estratégico' : 'Dispositivo Conectado'}</div>
+              </div>
+            </div>
+            ${AppState.isHost && !p.isHost ? `<button onclick="removeLobbyPlayer('${p.id}')" class="text-xs text-rose-400 hover:text-rose-300 px-2 py-1">Quitar</button>` : '<span class="text-emerald-400 text-xs font-mono-tech">● Listo</span>'}
+          `;
+        } else {
+          card.className = 'flex items-center justify-center p-3 rounded-xl border border-dashed border-slate-800 text-slate-500 text-xs font-mono-tech';
+          card.textContent = `Asiento ${i + 1} disponible...`;
+        }
+        listEl.appendChild(card);
+      }
+
+      const addBotBtn = document.getElementById('add-bot-btn');
+      if (addBotBtn) {
+        addBotBtn.disabled = g.players.length >= g.maxPlayers;
+        addBotBtn.classList.toggle('opacity-40', g.players.length >= g.maxPlayers);
+      }
+    }
+
+    function addBotToLobby() {
+      if (!AppState.isHost) return;
+      if (AppState.game.players.length >= AppState.game.maxPlayers) return;
+
+      const botNames = ['Bot_Cisco', 'Bot_Linux', 'Bot_Kernel', 'Bot_Packet'];
+      const usedNames = AppState.game.players.map(p => p.name);
+      const name = botNames.find(n => !usedNames.includes(n)) || ('Bot_' + (AppState.game.players.length + 1));
+
+      AppState.game.players.push({
+        id: 'bot_' + Math.random().toString(36).substring(2, 8),
+        name,
+        isBot: true,
+        isHost: false,
+        hand: [],
+        score: 0
+      });
+
+      SoundFX.playDrawCard();
+      renderLobbyPlayers();
+      broadcastGameState();
+    }
+
+    function removeLobbyPlayer(playerId) {
+      if (!AppState.isHost) return;
+      AppState.game.players = AppState.game.players.filter(p => p.id !== playerId);
+      renderLobbyPlayers();
+      broadcastGameState();
+    }
+
+    function startQuickBotMatch() {
+      createLanRoom();
+      while (AppState.game.players.length < AppState.game.maxPlayers) {
+        addBotToLobby();
+      }
+      hostStartMatch();
+    }
+
+    function hostStartMatch() {
+      if (!AppState.isHost) return;
+      if (AppState.game.players.length < 2) {
+        showToast('Se necesitan al menos 2 jugadores (o añade un Bot IA).', 'error');
+        SoundFX.playErrorBuzz();
+        return;
+      }
+      startNewRound();
+    }
+
+    function hostNextRound() {
+      if (!AppState.isHost) return;
+      AppState.game.roundNumber += 1;
+      startNewRound();
+    }
+
+    // =========================================================================
+    // 4. LÓGICA DEL JUEGO DE DOMINÓ DE REDES (REPARTO, TURNOS Y EMPAREJAMIENTO)
+    // =========================================================================
+    function shuffleArray(arr) {
+      const copy = [...arr];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    function startNewRound() {
+      clearTimeout(AppState.botTimer);
+      const deck = shuffleArray(buildFullDeck());
+      const players = AppState.game.players;
+
+      // Repartir exactamente 7 fichas por jugador
+      players.forEach(p => {
+        p.hand = deck.splice(0, 7);
+      });
+
+      AppState.game.boneyard = deck; // 14 fichas en 2P, 7 en 3P, 0 en 4P
+      AppState.game.board = [];
+      AppState.game.leftTarget = null;
+      AppState.game.rightTarget = null;
+      AppState.game.consecutivePasses = 0;
+      AppState.game.roundResult = null;
+      AppState.game.phase = 'playing';
+
+      // Seleccionar jugador inicial (rotativo por ronda)
+      AppState.game.turnIndex = (AppState.game.roundNumber - 1) % players.length;
+
+      AppState.selectedTileId = null;
+      AppState.lastPlacedTileId = null;
+
+      document.getElementById('round-over-modal').classList.add('hidden');
+      switchToGameScreen();
+      renderGameScreen();
+      broadcastGameState();
+      SoundFX.playTurnAlert();
+
+      scheduleBotIfNeeded();
+    }
+
+    // Verifica cómo puede encajar una ficha en el tablero actual
+    // Devuelve { canLeft: boolean, canRight: boolean }
+    function getTilePlayability(tile) {
+      const g = AppState.game;
+      if (g.board.length === 0) {
+        return { canLeft: true, canRight: true };
+      }
+      const canLeft = (tile.iconConceptId === g.leftTarget || tile.textConceptId === g.leftTarget);
+      const canRight = (tile.iconConceptId === g.rightTarget || tile.textConceptId === g.rightTarget);
+      return { canLeft, canRight };
+    }
+
+    function playerHasAnyValidMove(player) {
+      if (AppState.game.board.length === 0) return player.hand.length > 0;
+      return player.hand.some(tile => {
+        const p = getTilePlayability(tile);
+        return p.canLeft || p.canRight;
+      });
+    }
+
+    // Ejecuta una jugada en el estado autoritativo (Host)
+    function processPlayTile(playerId, tileId, preferredSide) {
+      if (!AppState.isHost) return;
+      const g = AppState.game;
+      if (g.phase !== 'playing') return;
+
+      const currentPlayer = g.players[g.turnIndex];
+      if (!currentPlayer || currentPlayer.id !== playerId) return;
+
+      const tileIdx = currentPlayer.hand.findIndex(t => t.id === tileId);
+      if (tileIdx === -1) return;
+
+      const tile = currentPlayer.hand[tileIdx];
+      const { canLeft, canRight } = getTilePlayability(tile);
+
+      if (!canLeft && !canRight) return;
+
+      // Caso 1: Primera ficha del tablero
+      if (g.board.length === 0) {
+        g.board.push({
+          tileId: tile.id,
+          leftHalf: { type: 'icon', conceptId: tile.iconConceptId },
+          rightHalf: { type: 'text', conceptId: tile.textConceptId }
+        });
+        g.leftTarget = tile.iconConceptId;
+        g.rightTarget = tile.textConceptId;
+      } else {
+        // Determinar lado definitivo
+        let side = preferredSide;
+        if (side === 'left' && !canLeft) side = 'right';
+        if (side === 'right' && !canRight) side = 'left';
+        if (!side) side = canRight ? 'right' : 'left';
+
+        if (side === 'left') {
+          // La mitad DERECHA de la nueva ficha debe tocar el extremo IZQUIERDO existente (g.leftTarget)
+          if (tile.textConceptId === g.leftTarget) {
+            // Texto toca a g.leftTarget -> Icono queda hacia afuera (nuevo leftTarget)
+            g.board.unshift({
+              tileId: tile.id,
+              leftHalf: { type: 'icon', conceptId: tile.iconConceptId },
+              rightHalf: { type: 'text', conceptId: tile.textConceptId }
+            });
+            g.leftTarget = tile.iconConceptId;
+          } else {
+            // Icono toca a g.leftTarget -> Texto queda hacia afuera (nuevo leftTarget)
+            g.board.unshift({
+              tileId: tile.id,
+              leftHalf: { type: 'text', conceptId: tile.textConceptId },
+              rightHalf: { type: 'icon', conceptId: tile.iconConceptId }
+            });
+            g.leftTarget = tile.textConceptId;
+          }
+        } else {
+          // side === 'right'
+          // La mitad IZQUIERDA de la nueva ficha debe tocar el extremo DERECHO existente (g.rightTarget)
+          if (tile.iconConceptId === g.rightTarget) {
+            // Icono toca a g.rightTarget -> Texto queda hacia afuera (nuevo rightTarget)
+            g.board.push({
+              tileId: tile.id,
+              leftHalf: { type: 'icon', conceptId: tile.iconConceptId },
+              rightHalf: { type: 'text', conceptId: tile.textConceptId }
+            });
+            g.rightTarget = tile.textConceptId;
+          } else {
+            // Texto toca a g.rightTarget -> Icono queda hacia afuera (nuevo rightTarget)
+            g.board.push({
+              tileId: tile.id,
+              leftHalf: { type: 'text', conceptId: tile.textConceptId },
+              rightHalf: { type: 'icon', conceptId: tile.iconConceptId }
+            });
+            g.rightTarget = tile.iconConceptId;
+          }
+        }
+      }
+
+      // Remover ficha de la mano del jugador
+      currentPlayer.hand.splice(tileIdx, 1);
+      g.consecutivePasses = 0;
+      AppState.lastPlacedTileId = tile.id;
+      AppState.selectedTileId = null;
+
+      SoundFX.playWoodClick();
+      if (navigator.vibrate) navigator.vibrate(25);
+
+      // Verificar si el jugador se quedó sin fichas (¡DOMINÓ!)
+      if (currentPlayer.hand.length === 0) {
+        finishRound('domino', currentPlayer);
+        return;
+      }
+
+      // Avanzar al siguiente turno
+      advanceTurn();
+    }
+
+    function processDrawTile(playerId) {
+      if (!AppState.isHost) return;
+      const g = AppState.game;
+      if (g.phase !== 'playing') return;
+
+      const currentPlayer = g.players[g.turnIndex];
+      if (!currentPlayer || currentPlayer.id !== playerId) return;
+      if (g.boneyard.length === 0) return;
+      if (playerHasAnyValidMove(currentPlayer)) return;
+
+      const drawn = g.boneyard.pop();
+      currentPlayer.hand.push(drawn);
+      SoundFX.playDrawCard();
+
+      renderGameScreen();
+      broadcastGameState();
+    }
+
+    function processPassTurn(playerId) {
+      if (!AppState.isHost) return;
+      const g = AppState.game;
+      if (g.phase !== 'playing') return;
+
+      const currentPlayer = g.players[g.turnIndex];
+      if (!currentPlayer || currentPlayer.id !== playerId) return;
+      if (g.boneyard.length > 0 || playerHasAnyValidMove(currentPlayer)) return;
+
+      g.consecutivePasses += 1;
+      showToast(`${currentPlayer.name} pasa su turno.`, 'info');
+
+      // Verificar Tranca (todos los jugadores pasaron consecutivamente y pozo vacío)
+      if (g.consecutivePasses >= g.players.length) {
+        finishRound('blocked', null);
+        return;
+      }
+
+      advanceTurn();
+    }
+
+    function advanceTurn() {
+      const g = AppState.game;
+      g.turnIndex = (g.turnIndex + 1) % g.players.length;
+      renderGameScreen();
+      broadcastGameState();
+
+      const nextPlayer = g.players[g.turnIndex];
+      if (nextPlayer && nextPlayer.id === AppState.myId) {
+        SoundFX.playTurnAlert();
+      }
+      scheduleBotIfNeeded();
+    }
+
+    function finishRound(reasonType, dominoWinner) {
+      const g = AppState.game;
+      g.phase = 'roundOver';
+
+      // Calcular puntos restantes (10 pts por ficha sobrante de los rivales)
+      let winner = dominoWinner;
+      if (reasonType === 'blocked') {
+        // En tranca gana quien tenga menos fichas en mano (desempate: menor suma de IDs)
+        const sorted = [...g.players].sort((a, b) => {
+          if (a.hand.length !== b.hand.length) return a.hand.length - b.hand.length;
+          const sumA = a.hand.reduce((acc, t) => acc + t.id, 0);
+          const sumB = b.hand.reduce((acc, t) => acc + t.id, 0);
+          return sumA - sumB;
+        });
+        winner = sorted[0];
+      }
+
+      let pointsEarned = 0;
+      g.players.forEach(p => {
+        if (p.id !== winner.id) {
+          pointsEarned += p.hand.length * 10;
+        }
+      });
+      if (pointsEarned === 0) pointsEarned = 25; // Bono mínimo en tranca empatada
+      winner.score += pointsEarned;
+
+      g.roundResult = {
+        reasonType,
+        winnerId: winner.id,
+        winnerName: winner.name,
+        pointsEarned
+      };
+
+      renderGameScreen();
+      broadcastGameState();
+      showRoundOverModal();
+    }
+
+    // -------------------------------------------------------------------------
+    // INTELIGENCIA ARTIFICIAL DE LOS BOTS
+    // -------------------------------------------------------------------------
+    function scheduleBotIfNeeded() {
+      clearTimeout(AppState.botTimer);
+      if (!AppState.isHost) return;
+      const g = AppState.game;
+      if (g.phase !== 'playing') return;
+
+      const active = g.players[g.turnIndex];
+      if (!active || !active.isBot) return;
+
+      AppState.botTimer = setTimeout(() => {
+        executeBotStep(active);
+      }, 950);
+    }
+
+    function executeBotStep(bot) {
+      const g = AppState.game;
+      if (g.phase !== 'playing' || g.players[g.turnIndex].id !== bot.id) return;
+
+      // Buscar jugadas válidas
+      const validMoves = [];
+      bot.hand.forEach(tile => {
+        const { canLeft, canRight } = getTilePlayability(tile);
+        if (canLeft) validMoves.push({ tile, side: 'left' });
+        if (canRight && g.board.length > 0) validMoves.push({ tile, side: 'right' });
+      });
+
+      if (validMoves.length > 0) {
+        // Elegir jugada estratégica (priorizar fichas cuyos conceptos aún tiene en mano)
+        validMoves.sort((a, b) => {
+          const scoreA = bot.hand.filter(t => t.iconConceptId === a.tile.textConceptId || t.textConceptId === a.tile.iconConceptId).length;
+          const scoreB = bot.hand.filter(t => t.iconConceptId === b.tile.textConceptId || t.textConceptId === b.tile.iconConceptId).length;
+          return scoreB - scoreA;
+        });
+        const chosen = validMoves[0];
+        processPlayTile(bot.id, chosen.tile.id, chosen.side);
+      } else if (g.boneyard.length > 0) {
+        processDrawTile(bot.id);
+        scheduleBotIfNeeded();
+      } else {
+        processPassTurn(bot.id);
+      }
+    }
+
+    // =========================================================================
+    // 5. INTERACCIÓN DEL JUGADOR LOCAL EN EL TABLERO Y MANO
+    // =========================================================================
+    function handleHandTileClick(tileId) {
+      const g = AppState.game;
+      if (g.phase !== 'playing') return;
+      const active = g.players[g.turnIndex];
+      if (!active || active.id !== AppState.myId) {
+        showToast('Espera tu turno para jugar.', 'info');
+        return;
+      }
+
+      const tile = active.hand.find(t => t.id === tileId);
+      if (!tile) return;
+
+      const { canLeft, canRight } = getTilePlayability(tile);
+      if (!canLeft && !canRight) {
+        SoundFX.playErrorBuzz();
+        const iconName = NETWORK_CONCEPTS[tile.iconConceptId].short;
+        const textName = NETWORK_CONCEPTS[tile.textConceptId].short;
+        showToast(`Esta ficha (${iconName} | ${textName}) no conecta con los extremos actuales.`, 'error');
+        return;
+      }
+
+      // Si el tablero está vacío, jugar directamente
+      if (g.board.length === 0) {
+        sendActionToHost({
+          type: 'PLAY_TILE',
+          playerId: AppState.myId,
+          tileId: tile.id,
+          side: 'right'
+        });
+        return;
+      }
+
+      // Si solo encaja en un lado, jugar inmediatamente con encaje magnético
+      if (canLeft && !canRight) {
+        sendActionToHost({
+          type: 'PLAY_TILE',
+          playerId: AppState.myId,
+          tileId: tile.id,
+          side: 'left'
+        });
+        return;
+      }
+
+      if (canRight && !canLeft) {
+        sendActionToHost({
+          type: 'PLAY_TILE',
+          playerId: AppState.myId,
+          tileId: tile.id,
+          side: 'right'
+        });
+        return;
+      }
+
+      // Si encaja en AMBOS extremos, seleccionarla para que el jugador elija Izquierda o Derecha
+      if (AppState.selectedTileId === tileId) {
+        AppState.selectedTileId = null;
+      } else {
+        AppState.selectedTileId = tileId;
+        SoundFX.playDrawCard();
+      }
+      renderGameScreen();
+    }
+
+    function handleBoardEndZoneClick(side) {
+      if (AppState.selectedTileId === null) return;
+      sendActionToHost({
+        type: 'PLAY_TILE',
+        playerId: AppState.myId,
+        tileId: AppState.selectedTileId,
+        side
+      });
+      AppState.selectedTileId = null;
+    }
+
+    function handlePlayerDraw() {
+      sendActionToHost({
+        type: 'DRAW_TILE',
+        playerId: AppState.myId
+      });
+    }
+
+    function handlePlayerPass() {
+      sendActionToHost({
+        type: 'PASS_TURN',
+        playerId: AppState.myId
+      });
+    }
+
+    // =========================================================================
+    // 6. RENDERIZADO VISUAL DE FICHAS, TABLERO EN SERPIENTE Y UI
+    // =========================================================================
+    function switchToGameScreen() {
+      document.getElementById('lobby-screen').classList.add('hidden');
+      document.getElementById('game-screen').classList.remove('hidden');
+      document.getElementById('header-room-badge').classList.remove('hidden');
+      document.getElementById('header-room-badge').classList.add('flex');
+      document.getElementById('leave-room-btn').classList.remove('hidden');
+      document.getElementById('header-room-code').textContent = 'NET-' + AppState.roomCode;
+    }
+
+    function renderHalfContent(half, orientation = 'horizontal') {
+      const concept = NETWORK_CONCEPTS[half.conceptId];
+      if (half.type === 'icon') {
+        return `
+          <div class="w-full h-full flex flex-col items-center justify-center p-1.5 text-sky-300 relative" title="Icono: ${concept.name}">
+            <div class="w-6 h-6 sm:w-7 sm:h-7">${concept.svg}</div>
+            ${AppState.showIconLabels ? `<span class="text-[8px] sm:text-[9px] font-mono-tech text-slate-300 leading-none mt-1 truncate max-w-full px-1">${concept.short}</span>` : ''}
+          </div>
+        `;
+      } else {
+        return `
+          <div class="w-full h-full flex items-center justify-center p-1.5 text-center" title="Concepto: ${concept.name}">
+            <span class="font-mono-tech font-bold text-[10px] sm:text-[11px] leading-tight text-amber-100 break-words">${concept.short}</span>
+          </div>
+        `;
+      }
+    }
+
+    function createTileElement(tileObj, extraClasses = '') {
+      const el = document.createElement('div');
+      el.className = `domino-tile domino-tile-horizontal shrink-0 ${extraClasses}`;
+      el.innerHTML = `
+        <div class="w-1/2 h-full flex items-center justify-center">${renderHalfContent(tileObj.leftHalf)}</div>
+        <div class="domino-divider-h"></div>
+        <div class="w-1/2 h-full flex items-center justify-center">${renderHalfContent(tileObj.rightHalf)}</div>
+      `;
+      return el;
+    }
+
+    function renderGameScreen() {
+      const g = AppState.game;
+      const activePlayer = g.players[g.turnIndex];
+      const isMyTurn = activePlayer && activePlayer.id === AppState.myId && g.phase === 'playing';
+      const me = g.players.find(p => p.id === AppState.myId) || g.players[0];
+
+      // 1. Renderizar barra de jugadores y marcador
+      const scoreBar = document.getElementById('scoreboard-bar');
+      scoreBar.innerHTML = '';
+      g.players.forEach((p, idx) => {
+        const isTurn = idx === g.turnIndex && g.phase === 'playing';
+        const pill = document.createElement('div');
+        pill.className = `flex items-center gap-2 px-3 py-1.5 rounded-xl border transition shrink-0 ${
+          isTurn
+            ? 'bg-sky-950/90 border-sky-400 shadow-md shadow-sky-500/20'
+            : 'bg-slate-900/80 border-slate-800 opacity-85'
+        }`;
+        pill.innerHTML = `
+          <div class="w-6 h-6 rounded-lg ${isTurn ? 'bg-sky-400 text-slate-950' : 'bg-slate-800 text-slate-300'} font-mono-tech font-bold text-xs flex items-center justify-center">
+            ${p.isBot ? 'IA' : 'P' + (idx + 1)}
+          </div>
+          <div>
+            <div class="text-xs font-bold text-white flex items-center gap-1">
+              <span>${escapeHtml(p.name)}</span>
+              ${p.id === AppState.myId ? '<span class="text-[9px] text-sky-400 font-mono-tech">(Tú)</span>' : ''}
+            </div>
+            <div class="flex items-center gap-2 text-[10px] font-mono-tech text-slate-400">
+              <span>Fichas: <strong class="text-white">${p.hand.length}</strong></span>
+              <span>•</span>
+              <span>Pts: <strong class="text-amber-300">${p.score}</strong></span>
+            </div>
+          </div>
+        `;
+        scoreBar.appendChild(pill);
+      });
+
+      // 2. Actualizar Pozo
+      document.getElementById('boneyard-count').textContent = g.boneyard.length;
+
+      // 3. Banner de Turno y Extremos Abiertos
+      const turnText = document.getElementById('turn-banner-text');
+      const turnDot = document.getElementById('turn-indicator-dot');
+      if (g.phase === 'playing' && activePlayer) {
+        if (isMyTurn) {
+          turnText.innerHTML = `<span class="text-sky-300 font-bold">¡Es tu turno!</span> Selecciona una ficha iluminada para conectar.`;
+          turnDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping';
+        } else {
+          turnText.innerHTML = `Turno de <strong class="text-amber-300">${escapeHtml(activePlayer.name)}</strong>...`;
+          turnDot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse';
+        }
+      }
+
+      const openEndsBar = document.getElementById('open-ends-bar');
+      if (g.board.length > 0) {
+        openEndsBar.classList.remove('hidden');
+        openEndsBar.classList.add('flex');
+        document.getElementById('left-target-label').textContent = NETWORK_CONCEPTS[g.leftTarget].short;
+        document.getElementById('right-target-label').textContent = NETWORK_CONCEPTS[g.rightTarget].short;
+      } else {
+        openEndsBar.classList.add('hidden');
+        openEndsBar.classList.remove('flex');
+      }
+
+      // 4. Renderizar Tablero en Serpiente Responsiva
+      renderSnakeBoard(isMyTurn);
+
+      // 5. Renderizar Mano del Jugador Local
+      renderPlayerHand(me, isMyTurn);
+    }
+
+    function renderSnakeBoard(isMyTurn) {
+      const g = AppState.game;
+      const emptyPrompt = document.getElementById('empty-board-prompt');
+      const wrapper = document.getElementById('board-chain-wrapper');
+      wrapper.style.transform = `scale(${AppState.boardZoom})`;
+
+      if (g.board.length === 0) {
+        emptyPrompt.classList.remove('hidden');
+        wrapper.innerHTML = '';
+        return;
+      }
+
+      emptyPrompt.classList.add('hidden');
+      wrapper.innerHTML = '';
+
+      // Determinar cuántas fichas caben por fila según el ancho de pantalla
+      const isMobile = window.innerWidth < 640;
+      const tilesPerRow = isMobile ? 2 : (window.innerWidth < 1024 ? 4 : 5);
+
+      // Construir lista de elementos visuales incluyendo zonas de destino si hay ficha seleccionada
+      const items = g.board.map(b => ({ kind: 'tile', data: b }));
+
+      let showLeftDrop = false;
+      let showRightDrop = false;
+      if (isMyTurn && AppState.selectedTileId !== null) {
+        const me = g.players.find(p => p.id === AppState.myId);
+        const selTile = me ? me.hand.find(t => t.id === AppState.selectedTileId) : null;
+        if (selTile) {
+          const playability = getTilePlayability(selTile);
+          showLeftDrop = playability.canLeft;
+          showRightDrop = playability.canRight;
+        }
+      }
+
+      if (showLeftDrop) {
+        items.unshift({ kind: 'drop', side: 'left', label: NETWORK_CONCEPTS[g.leftTarget].short });
+      }
+      if (showRightDrop) {
+        items.push({ kind: 'drop', side: 'right', label: NETWORK_CONCEPTS[g.rightTarget].short });
+      }
+
+      // Agrupar en filas en serpiente (Row 0: L->R, Row 1: R->L, Row 2: L->R...)
+      const rows = [];
+      for (let i = 0; i < items.length; i += tilesPerRow) {
+        rows.push(items.slice(i, i + tilesPerRow));
+      }
+
+      rows.forEach((rowItems, rowIndex) => {
+        const isReversed = rowIndex % 2 === 1;
+        const rowDiv = document.createElement('div');
+        rowDiv.className = `flex items-center justify-center gap-2 sm:gap-2.5 ${isReversed ? 'flex-row-reverse' : 'flex-row'}`;
+
+        rowItems.forEach((item) => {
+          if (item.kind === 'drop') {
+            const dropEl = document.createElement('button');
+            dropEl.onclick = () => handleBoardEndZoneClick(item.side);
+            dropEl.className = 'domino-tile-horizontal rounded-xl drop-zone-active flex flex-col items-center justify-center p-2 text-amber-300 shrink-0 transition';
+            dropEl.innerHTML = `
+              <span class="text-[10px] font-mono-tech uppercase tracking-wider font-bold">+ Colocar Aquí</span>
+              <span class="text-xs font-bold text-white mt-0.5">${escapeHtml(item.label)}</span>
+            `;
+            rowDiv.appendChild(dropEl);
+          } else {
+            // Si la fila está invertida visualmente (serpiente), invertimos también las mitades visuales
+            // para mantener continuidad visual de conexión entre fichas adyacentes
+            const tileData = isReversed
+              ? { tileId: item.data.tileId, leftHalf: item.data.rightHalf, rightHalf: item.data.leftHalf }
+              : item.data;
+            const isJustPlaced = tileData.tileId === AppState.lastPlacedTileId;
+            const tileEl = createTileElement(tileData, isJustPlaced ? 'anim-snap' : '');
+            rowDiv.appendChild(tileEl);
+          }
+        });
+
+        wrapper.appendChild(rowDiv);
+      });
+    }
+
+    function renderPlayerHand(me, isMyTurn) {
+      const container = document.getElementById('player-hand-container');
+      const countEl = document.getElementById('my-hand-count');
+      const drawBtn = document.getElementById('draw-boneyard-btn');
+      const passBtn = document.getElementById('pass-turn-btn');
+      const hintEl = document.getElementById('selected-tile-hint');
+
+      if (!me) return;
+      countEl.textContent = me.hand.length;
+      container.innerHTML = '';
+
+      let hasPlayable = false;
+
+      me.hand.forEach((tile, index) => {
+        const { canLeft, canRight } = getTilePlayability(tile);
+        const playable = isMyTurn && (canLeft || canRight);
+        if (playable) hasPlayable = true;
+
+        const isSelected = AppState.selectedTileId === tile.id;
+        const tileVisual = {
+          tileId: tile.id,
+          leftHalf: { type: 'icon', conceptId: tile.iconConceptId },
+          rightHalf: { type: 'text', conceptId: tile.textConceptId }
+        };
+
+        let stateClass = 'hand-tile ';
+        if (isMyTurn) {
+          stateClass += playable ? 'playable ' : 'disabled ';
+        }
+        if (isSelected) {
+          stateClass += 'selected ';
+        }
+
+        const el = createTileElement(tileVisual, stateClass);
+        el.style.animationDelay = `${index * 35}ms`;
+        el.onclick = () => handleHandTileClick(tile.id);
+        container.appendChild(el);
+      });
+
+      // Mostrar botones de Robar o Pasar si es mi turno y no tengo jugadas
+      if (isMyTurn && !hasPlayable) {
+        if (AppState.game.boneyard.length > 0) {
+          drawBtn.classList.remove('hidden');
+          passBtn.classList.add('hidden');
+        } else {
+          drawBtn.classList.add('hidden');
+          passBtn.classList.remove('hidden');
+        }
+      } else {
+        drawBtn.classList.add('hidden');
+        passBtn.classList.add('hidden');
+      }
+
+      if (AppState.selectedTileId !== null) {
+        hintEl.textContent = '• Encaja en ambos extremos: pulsa "+ Colocar Aquí" en el tablero';
+        hintEl.classList.remove('hidden');
+      } else {
+        hintEl.textContent = '';
+      }
+    }
+
+    // =========================================================================
+    // 7. MODALES, GLOSARIO, CONFETI Y UTILIDADES DE INTERFAZ
+    // =========================================================================
+    function showRoundOverModal() {
+      const g = AppState.game;
+      const res = g.roundResult;
+      if (!res) return;
+
+      SoundFX.playVictoryFanfare();
+      launchConfetti();
+
+      const modal = document.getElementById('round-over-modal');
+      document.getElementById('round-end-badge').textContent =
+        res.reasonType === 'domino' ? '¡DOMINÓ DE RED!' : '¡CIRCUITO TRANCADO!';
+      document.getElementById('round-winner-title').textContent =
+        `¡${res.winnerName} gana la Ronda ${g.roundNumber}!`;
+      document.getElementById('round-winner-reason').textContent =
+        res.reasonType === 'domino'
+          ? `Colocó todas sus fichas y suma +${res.pointsEarned} puntos.`
+          : `Nadie tiene movimientos válidos. Ganó por tener menos fichas (+${res.pointsEarned} pts).`;
+
+      const listEl = document.getElementById('round-standings-list');
+      listEl.innerHTML = '';
+      const sorted = [...g.players].sort((a, b) => b.score - a.score);
+      sorted.forEach((p, idx) => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between py-1.5 px-2 rounded-xl ' + (p.id === res.winnerId ? 'bg-amber-500/15 border border-amber-500/30' : '');
+        row.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="font-mono-tech text-xs text-slate-400">#${idx + 1}</span>
+            <span class="text-sm font-bold text-white">${escapeHtml(p.name)}</span>
+            <span class="text-[11px] font-mono-tech text-slate-400">(${p.hand.length} fichas)</span>
+          </div>
+          <span class="font-mono-tech font-bold text-sm text-amber-300">${p.score} pts</span>
+        `;
+        listEl.appendChild(row);
+      });
+
+      const nextBtn = document.getElementById('next-round-btn');
+      if (AppState.isHost) {
+        nextBtn.classList.remove('hidden');
+      } else {
+        nextBtn.classList.add('hidden');
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    function renderGlossary(filter = '') {
+      const grid = document.getElementById('glossary-grid');
+      const term = filter.trim().toLowerCase();
+      grid.innerHTML = '';
+
+      NETWORK_CONCEPTS.forEach((c, idx) => {
+        const nextC = NETWORK_CONCEPTS[(idx + 1) % 28];
+        if (term && !c.name.toLowerCase().includes(term) && !c.desc.toLowerCase().includes(term) && !c.category.toLowerCase().includes(term)) {
+          return;
+        }
+
+        const card = document.createElement('div');
+        card.className = 'bg-slate-950/90 border border-slate-800 rounded-2xl p-3.5 flex flex-col justify-between gap-2.5';
+        card.innerHTML = `
+          <div class="flex items-start gap-3">
+            <div class="w-11 h-11 rounded-xl bg-slate-900 border border-sky-500/40 flex items-center justify-center text-sky-300 shrink-0 p-2">
+              ${c.svg}
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="text-[10px] font-mono-tech text-slate-500">#${idx}</span>
+                <h4 class="font-bold text-sm text-white">${c.name}</h4>
+              </div>
+              <span class="text-[10px] font-mono-tech text-sky-400 block">${c.category}</span>
+              <p class="text-xs text-slate-400 mt-1 leading-snug">${c.desc}</p>
+            </div>
+          </div>
+          <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono-tech">
+            <span class="text-slate-500">En su ficha lleva texto:</span>
+            <span class="text-amber-300 font-bold">→ ${nextC.short}</span>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function filterGlossary() {
+      const val = document.getElementById('glossary-search').value;
+      renderGlossary(val);
+    }
+
+    function openGlossaryModal() {
+      document.getElementById('glossary-modal').classList.remove('hidden');
+    }
+    function closeGlossaryModal() {
+      document.getElementById('glossary-modal').classList.add('hidden');
+    }
+    function openRulesModal() {
+      document.getElementById('rules-modal').classList.remove('hidden');
+    }
+    function closeRulesModal() {
+      document.getElementById('rules-modal').classList.add('hidden');
+    }
+
+    function toggleIconLabels() {
+      AppState.showIconLabels = !AppState.showIconLabels;
+      updateLabelsButtonUI();
+      if (AppState.game.phase === 'playing') {
+        renderGameScreen();
+      }
+    }
+
+    function updateLabelsButtonUI() {
+      const txt = document.getElementById('toggle-labels-text');
+      if (txt) {
+        txt.textContent = AppState.showIconLabels ? 'Etiquetas: ON' : 'Etiquetas: OFF';
+      }
+    }
+
+    function adjustBoardZoom(delta) {
+      AppState.boardZoom = Math.min(1.4, Math.max(0.65, +(AppState.boardZoom + delta).toFixed(2)));
+      document.getElementById('zoom-level-label').textContent = Math.round(AppState.boardZoom * 100) + '%';
+      const wrapper = document.getElementById('board-chain-wrapper');
+      if (wrapper) wrapper.style.transform = `scale(${AppState.boardZoom})`;
+    }
+
+    function toggleSound() {
+      const isMuted = SoundFX.toggle();
+      document.getElementById('sound-icon-on').classList.toggle('hidden', isMuted);
+      document.getElementById('sound-icon-off').classList.toggle('hidden', !isMuted);
+      showToast(isMuted ? 'Sonido silenciado' : 'Sonido activado', 'info');
+    }
+
+    function copyInviteLink() {
+      const url = new URL(window.location.href);
+      url.searchParams.set('room', AppState.roomCode);
+      const shareText = url.toString();
+
+      const tempInput = document.createElement('input');
+      tempInput.value = shareText;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      document.execCommand('copy');
+      document.body.removeChild(tempInput);
+
+      showToast(`Enlace de sala NET-${AppState.roomCode} copiado al portapapeles.`, 'success');
+    }
+
+    function confirmLeaveRoom() {
+      document.getElementById('confirm-leave-modal').classList.remove('hidden');
+    }
+    function closeConfirmLeaveModal() {
+      document.getElementById('confirm-leave-modal').classList.add('hidden');
+    }
+    function leaveRoomNow() {
+      clearTimeout(AppState.botTimer);
+      if (AppState.peer) AppState.peer.destroy();
+      if (AppState.bc) AppState.bc.close();
+      AppState.peer = null;
+      AppState.bc = null;
+      AppState.isHost = false;
+      AppState.roomCode = '';
+      AppState.game.phase = 'lobby';
+
+      closeConfirmLeaveModal();
+      document.getElementById('round-over-modal').classList.add('hidden');
+      document.getElementById('game-screen').classList.add('hidden');
+      document.getElementById('lobby-screen').classList.remove('hidden');
+      document.getElementById('waiting-room-panel').classList.add('hidden');
+      document.getElementById('lobby-setup-cards').classList.remove('hidden');
+      document.getElementById('header-room-badge').classList.add('hidden');
+      document.getElementById('leave-room-btn').classList.add('hidden');
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      const colors = {
+        success: 'bg-emerald-950/95 border-emerald-500/60 text-emerald-200',
+        error: 'bg-rose-950/95 border-rose-500/60 text-rose-200',
+        info: 'bg-slate-900/95 border-sky-500/50 text-sky-100'
+      };
+      toast.className = `px-4 py-2 rounded-xl border text-xs sm:text-sm font-medium shadow-xl backdrop-blur-md transition-all duration-300 ${colors[type] || colors.info}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(-8px)';
+        setTimeout(() => toast.remove(), 300);
+      }, 3200);
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[m]));
+    }
+
+    // Reajustar serpiente del tablero al rotar pantalla o redimensionar ventana
+    window.addEventListener('resize', () => {
+      if (AppState.game.phase === 'playing') {
+        renderSnakeBoard(
+          AppState.game.players[AppState.game.turnIndex]?.id === AppState.myId
+        );
+      }
+    });
+
+    // Partículas de confeti al ganar ronda
+    function launchConfetti() {
+      const canvas = document.getElementById('confetti-canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const palette = ['#38bdf8', '#fbbf24', '#34d399', '#818cf8', '#f472b6'];
+      const particles = Array.from({ length: 85 }, () => ({
+        x: Math.random() * canvas.width,
+        y: -20 - Math.random() * 120,
+        size: 5 + Math.random() * 6,
+        vx: -2 + Math.random() * 4,
+        vy: 2.5 + Math.random() * 4.5,
+        rot: Math.random() * 360,
+        vrot: -6 + Math.random() * 12,
+        color: palette[Math.floor(Math.random() * palette.length)]
+      }));
+
+      let frames = 0;
+      function step() {
+        frames++;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        particles.forEach(p => {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.rot += p.vrot;
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate((p.rot * Math.PI) / 180);
+          ctx.fillStyle = p.color;
+          ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+          ctx.restore();
+        });
+        if (frames < 140) {
+          requestAnimationFrame(step);
+        } else {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      }
+      requestAnimationFrame(step);
+    }
+  </script>
+</body>
+</html>
