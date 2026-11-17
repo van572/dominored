@@ -76,15 +76,15 @@
     .domino-tile-horizontal {
       display: flex;
       flex-direction: row;
-      width: 152px;
-      height: 76px;
+      width: 186px;
+      height: 84px;
     }
 
     .domino-tile-vertical {
       display: flex;
       flex-direction: column;
-      width: 78px;
-      height: 154px;
+      width: 84px;
+      height: 186px;
     }
 
     /* Divisor central metálico/marfil con remache */
@@ -226,6 +226,28 @@
       transform: scale(1.06);
     }
 
+    /* Resaltado sutil de los extremos abiertos del circuito */
+    .board-open-end-left {
+      box-shadow:
+        0 6px 0 #020305,
+        0 0 16px rgba(56, 189, 248, 0.32),
+        inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    }
+    .board-open-end-right {
+      box-shadow:
+        0 6px 0 #020305,
+        0 0 16px rgba(251, 191, 36, 0.32),
+        inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    }
+
+    /* Cursor de arrastre suave para explorar tableros largos */
+    #board-viewport.grabbing {
+      cursor: grabbing;
+    }
+    #board-viewport {
+      cursor: grab;
+    }
+
     /* Dorso de ficha para oponentes y pozo */
     .tile-back {
       background:
@@ -254,13 +276,13 @@
 
     @media (max-width: 640px) {
       .domino-tile-horizontal {
-        width: 126px;
-        height: 64px;
+        width: 154px;
+        height: 72px;
         border-radius: 10px;
       }
       .domino-tile-vertical {
-        width: 66px;
-        height: 128px;
+        width: 72px;
+        height: 154px;
         border-radius: 10px;
       }
     }
@@ -440,6 +462,7 @@
             <div class="relative flex-1">
               <span class="absolute left-3.5 top-1/2 -translate-y-1/2 font-mono-tech text-slate-500 font-bold text-sm">NET-</span>
               <input id="join-code-input" type="text" maxlength="4" placeholder="4821"
+                onkeydown="if(event.key==='Enter') joinLanRoom()"
                 class="w-full pl-14 pr-3 py-3 rounded-xl bg-slate-950 border border-slate-700 focus:border-amber-400 focus:outline-none text-white font-mono-tech font-bold text-lg tracking-widest uppercase" />
             </div>
             <button onclick="joinLanRoom()" class="px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm shadow-lg shadow-amber-500/20 transition">
@@ -452,7 +475,7 @@
         <div class="bg-slate-950/90 border border-slate-800 rounded-xl p-4 space-y-3">
           <div class="flex items-center justify-between">
             <span class="text-[11px] font-mono-tech uppercase text-slate-400">Ejemplo de Mecánica de Ficha</span>
-            <span class="text-[11px] text-sky-400 font-mono-tech">Icono (i) | Texto (i+1)</span>
+            <span class="text-[11px] text-sky-400 font-mono-tech">Icono (i) | Definición (i+1)</span>
           </div>
           <div class="flex items-center justify-center gap-2 py-1 overflow-x-auto">
             <!-- Ficha ejemplo 1 -->
@@ -463,11 +486,10 @@
                   <path d="M4 7v6c0 1.9 3.6 3.5 8 3.5s8-1.6 8-3.5V7"></path>
                   <path d="M8 7l8 0M12 4.5v5" stroke-width="1.5"></path>
                 </svg>
-                <span class="text-[9px] font-mono-tech text-slate-400 mt-0.5">Router</span>
               </div>
               <div class="domino-divider-h"></div>
               <div class="w-1/2 h-full flex items-center justify-center p-1.5 text-center">
-                <span class="font-mono-tech font-bold text-[11px] leading-tight text-amber-200">Switch</span>
+                <span class="text-[8.5px] leading-[1.15] text-amber-100 font-medium">Conmuta tramas Ethernet por dirección MAC en LAN</span>
               </div>
             </div>
 
@@ -480,16 +502,15 @@
                   <rect x="2" y="7" width="20" height="10" rx="2"></rect>
                   <path d="M6 11h2M10 11h2M14 11h2M18 11h0.01M6 14h2M10 14h2M14 14h2"></path>
                 </svg>
-                <span class="text-[9px] font-mono-tech text-slate-400 mt-0.5">Switch</span>
               </div>
               <div class="domino-divider-h"></div>
               <div class="w-1/2 h-full flex items-center justify-center p-1.5 text-center">
-                <span class="font-mono-tech font-bold text-[11px] leading-tight text-slate-100">Firewall</span>
+                <span class="text-[8.5px] leading-[1.15] text-amber-100 font-medium">Filtra y bloquea tráfico no autorizado según reglas</span>
               </div>
             </div>
           </div>
           <p class="text-[11px] text-slate-400 text-center">
-            Conecta el texto <strong class="text-amber-200">"Switch"</strong> con el icono del <strong class="text-emerald-300">Switch</strong> para extender la topología.
+            Lee la <strong class="text-amber-200">definición</strong> (sin título) y conéctala con el <strong class="text-emerald-300">icono</strong> que la representa.
           </p>
         </div>
       </div>
@@ -580,26 +601,26 @@
       </div>
 
       <!-- Extremos requeridos actualmente -->
-      <div id="open-ends-bar" class="hidden items-center gap-2 text-[11px] font-mono-tech bg-slate-950/85 border border-slate-800 px-3 py-1 rounded-full">
-        <span class="text-slate-400">Extremo Izq:</span>
-        <span id="left-target-label" class="text-sky-300 font-bold">---</span>
+      <div id="open-ends-bar" class="hidden items-center gap-2 text-[11px] font-mono-tech bg-slate-950/90 border border-slate-800 px-3 py-1 rounded-full max-w-full overflow-x-auto shadow-md">
+        <span class="inline-flex items-center gap-1 text-sky-400 shrink-0"><span class="w-2 h-2 rounded-full bg-sky-400"></span>Izq:</span>
+        <span id="left-target-label" class="text-sky-200 font-bold truncate max-w-[150px] sm:max-w-[230px]">---</span>
         <span class="text-slate-600">|</span>
-        <span class="text-slate-400">Extremo Der:</span>
-        <span id="right-target-label" class="text-amber-300 font-bold">---</span>
+        <span class="inline-flex items-center gap-1 text-amber-400 shrink-0"><span class="w-2 h-2 rounded-full bg-amber-400"></span>Der:</span>
+        <span id="right-target-label" class="text-amber-200 font-bold truncate max-w-[150px] sm:max-w-[230px]">---</span>
       </div>
     </div>
 
-    <!-- ÁREA CENTRAL: TABLERO DE DOMINÓ EN SERPIENTE RESPONSIVA -->
-    <div id="board-viewport" class="flex-1 w-full overflow-auto flex items-center justify-center p-4 sm:p-6 relative min-h-[260px]">
+    <!-- ÁREA CENTRAL: TABLERO DE DOMINÓ CONTINUO CON ESQUINAS EN L -->
+    <div id="board-viewport" class="flex-1 w-full overflow-auto flex items-center justify-center p-4 sm:p-6 relative min-h-[280px]">
       <!-- Mensaje cuando el tablero está vacío -->
       <div id="empty-board-prompt" class="text-center p-6 rounded-2xl border-2 border-dashed border-slate-700/80 bg-slate-900/40 max-w-sm">
         <p class="text-sm font-semibold text-slate-200">Mesa Lista para Iniciar</p>
         <p class="text-xs text-slate-400 mt-1">El primer jugador debe colocar cualquier ficha en el centro para abrir el circuito.</p>
       </div>
 
-      <!-- Contenedor escalable de la cadena de fichas -->
-      <div id="board-chain-wrapper" class="transition-transform duration-200 origin-center flex flex-col items-center justify-center gap-3">
-        <!-- Filas en serpiente renderizadas por JS -->
+      <!-- Contenedor escalable con coordenadas geométricas exactas -->
+      <div id="board-chain-wrapper" class="transition-transform duration-200 origin-center relative">
+        <!-- Cadena continua con giros en esquina renderizada por JS -->
       </div>
     </div>
 
@@ -636,9 +657,9 @@
           </div>
         </div>
 
-        <!-- Carrusel / Cuadrícula de Fichas en Mano -->
-        <div id="player-hand-container" class="flex items-center sm:justify-center gap-2.5 sm:gap-3 overflow-x-auto py-3 px-2 min-h-[104px]">
-          <!-- Renderizado por JS -->
+        <!-- Carril horizontal de fichas de la mano -->
+        <div id="player-hand-container" class="flex items-center gap-2.5 sm:gap-3 overflow-x-auto py-3 px-1 min-h-[104px] sm:min-h-[116px]">
+          <!-- Fichas renderizadas por JS -->
         </div>
       </div>
     </div>
@@ -751,6 +772,7 @@
         id: 0,
         name: "Router",
         short: "Router",
+        clue: "Interconecta redes distintas y enruta paquetes IP entre ellas.",
         category: "Capa 3 • Enrutamiento",
         desc: "Dispositivo que interconecta redes distintas y dirige paquetes IP hacia su destino óptimo.",
         svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -763,6 +785,7 @@
         id: 1,
         name: "Switch",
         short: "Switch",
+        clue: "Conmuta tramas Ethernet en LAN usando direcciones MAC.",
         category: "Capa 2 • Conmutación",
         desc: "Conmutador de red local que reenvía tramas Ethernet usando direcciones MAC.",
         svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -774,6 +797,7 @@
         id: 2,
         name: "Firewall",
         short: "Firewall",
+        clue: "Filtra y bloquea tráfico de red según reglas de seguridad.",
         category: "Seguridad Perimetral",
         desc: "Sistema de seguridad que filtra y controla el tráfico entrante y saliente según reglas.",
         svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -789,6 +813,7 @@
         id: 3,
         name: "Dirección IP",
         short: "Dirección IP",
+        clue: "Identificador lógico único asignado a cada nodo en la red.",
         category: "Direccionamiento Lógico",
         desc: "Identificador numérico único asignado a cada interfaz conectada a una red IP.",
         svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -801,6 +826,7 @@
         id: 4,
         name: "Servidor DNS",
         short: "DNS",
+        clue: "Traduce nombres de dominio web en direcciones IP numéricas.",
         category: "Resolución de Nombres",
         desc: "Traduce nombres de dominio legibles (ej. web.org) en direcciones IP numéricas.",
         svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -813,6 +839,7 @@
         id: 5,
         name: "Protocolo DHCP",
         short: "DHCP",
+        clue: "Asigna dinámicamente IP, máscara y gateway a los clientes.",
         category: "Configuración Dinámica",
         desc: "Asigna automáticamente direcciones IP, máscara de subred y puerta de enlace a los clientes.",
         svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -826,6 +853,7 @@
         id: 6,
         name: "Modelo OSI",
         short: "Modelo OSI",
+        clue: "Arquitectura teórica de 7 capas que estandariza la red.",
         category: "Arquitectura 7 Capas",
         desc: "Marco conceptual de 7 capas que estandariza las funciones de telecomunicaciones.",
         svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -838,6 +866,7 @@
         id: 7,
         name: "Pila TCP/IP",
         short: "TCP/IP",
+        clue: "Suite de protocolos base para entrega fiable en Internet.",
         category: "Transporte e Internet",
         desc: "Conjunto fundamental de protocolos que garantiza entrega confiable y enrutamiento en Internet.",
         svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -851,6 +880,7 @@
         id: 8,
         name: "Fibra Óptica",
         short: "Fibra Óptica",
+        clue: "Transmite datos a alta velocidad mediante pulsos de luz.",
         category: "Medio Guiado Fotónico",
         desc: "Medio de transmisión de ultra velocidad que envía pulsos de luz a través de hilos de vidrio.",
         svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -863,6 +893,7 @@
         id: 9,
         name: "Cable UTP",
         short: "Cable UTP",
+        clue: "Medio de par trenzado de cobre sin blindaje para Ethernet.",
         category: "Par Trenzado Cobre",
         desc: "Cable de par trenzado no apantallado estándar en redes Ethernet locales (Cat5e/Cat6).",
         svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -874,6 +905,7 @@
         id: 10,
         name: "Conector RJ45",
         short: "Conector RJ45",
+        clue: "Interfaz física modular de 8 pines para cables Ethernet.",
         category: "Interfaz Física 8P8C",
         desc: "Interfaz física estándar de 8 pines utilizada para terminar cables Ethernet de par trenzado.",
         svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -886,6 +918,7 @@
         id: 11,
         name: "Dirección MAC",
         short: "Dirección MAC",
+        clue: "Identificador físico hexadecimal de 48 bits grabado en hardware.",
         category: "Identificador Físico",
         desc: "Identificador hexadecimal de 48 bits grabado en el hardware de cada interfaz de red.",
         svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -898,6 +931,7 @@
         id: 12,
         name: "Subred / CIDR",
         short: "Subred / CIDR",
+        clue: "Divide una red IP en bloques menores usando máscaras de red.",
         category: "Segmentación IP",
         desc: "División lógica de una red IP en bloques más pequeños mediante máscaras de red.",
         svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -910,6 +944,7 @@
         id: 13,
         name: "Gateway",
         short: "Gateway",
+        clue: "Puerta de enlace predeterminada para salir hacia Internet.",
         category: "Puerta de Enlace",
         desc: "Nodo de salida predeterminado que conecta una red local con redes externas o Internet.",
         svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -921,6 +956,7 @@
         id: 14,
         name: "Túnel VPN",
         short: "Túnel VPN",
+        clue: "Crea un canal privado y cifrado sobre una red pública.",
         category: "Cifrado de Extremo",
         desc: "Red Privada Virtual que crea un túnel cifrado y seguro sobre una red pública.",
         svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -933,6 +969,7 @@
         id: 15,
         name: "Wi-Fi 802.11",
         short: "Wi-Fi",
+        clue: "Conexión inalámbrica de área local mediante ondas de radio.",
         category: "Acceso Inalámbrico",
         desc: "Tecnología de interconexión inalámbrica mediante ondas de radio estándar IEEE 802.11.",
         svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -946,6 +983,7 @@
         id: 16,
         name: "Servidor Proxy",
         short: "Servidor Proxy",
+        clue: "Intermediario que filtra peticiones web y almacena caché.",
         category: "Intermediario / Caché",
         desc: "Servidor intermediario que filtra peticiones, oculta identidades y almacena caché.",
         svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -959,6 +997,7 @@
         id: 17,
         name: "HTTPS / TLS",
         short: "HTTPS / TLS",
+        clue: "Transferencia web cifrada mediante certificados digitales.",
         category: "Web Cifrada",
         desc: "Protocolo seguro de transferencia de hipertexto protegido con certificados TLS/SSL.",
         svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -971,6 +1010,7 @@
         id: 18,
         name: "Latencia / Ping",
         short: "Ping / ICMP",
+        clue: "Mide el tiempo de respuesta en milisegundos con ecos ICMP.",
         category: "Diagnóstico de Tiempo",
         desc: "Tiempo de ida y vuelta (RTT) medido en milisegundos mediante ecos ICMP.",
         svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -983,6 +1023,7 @@
         id: 19,
         name: "Topología Estrella",
         short: "Topología Estrella",
+        clue: "Todos los equipos se conectan a un nodo concentrador central.",
         category: "Diseño de Red LAN",
         desc: "Arquitectura donde todos los nodos se conectan directamente a un concentrador central.",
         svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -999,6 +1040,7 @@
         id: 20,
         name: "Ancho de Banda",
         short: "Ancho de Banda",
+        clue: "Capacidad máxima de transmisión de datos medida en Mbps.",
         category: "Capacidad de Canal",
         desc: "Capacidad máxima de transferencia de datos de un enlace medida en Mbps o Gbps.",
         svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -1011,6 +1053,7 @@
         id: 21,
         name: "Paquete IP",
         short: "Paquete IP",
+        clue: "Unidad de datos con cabecera origen/destino y carga útil.",
         category: "Unidad de Datos",
         desc: "Unidad estructurada de información compuesta por cabecera (origen/destino) y carga útil.",
         svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -1023,6 +1066,7 @@
         id: 22,
         name: "Traducción NAT",
         short: "NAT",
+        clue: "Convierte direcciones IP privadas locales en una IP pública.",
         category: "Conversión IP",
         desc: "Mecanismo que traduce direcciones IP privadas internas en una IP pública hacia Internet.",
         svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -1036,6 +1080,7 @@
         id: 23,
         name: "Red VLAN",
         short: "VLAN",
+        clue: "Segmenta redes lógicas aisladas dentro de un mismo switch.",
         category: "Segmentación Capa 2",
         desc: "Red de Área Local Virtual que aísla dominios de difusión dentro de un mismo switch físico.",
         svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -1049,6 +1094,7 @@
         id: 24,
         name: "Cloud / Nube",
         short: "Cloud / Nube",
+        clue: "Servidores y almacenamiento remotos accesibles por Internet.",
         category: "Infraestructura Remota",
         desc: "Servicios de cómputo, almacenamiento y redes accesibles bajo demanda a través de Internet.",
         svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -1059,6 +1105,7 @@
         id: 25,
         name: "Protocolo ARP",
         short: "Protocolo ARP",
+        clue: "Descubre la dirección física MAC asociada a una IP local.",
         category: "Resolución IP → MAC",
         desc: "Protocolo de resolución que descubre la dirección física MAC asociada a una dirección IP.",
         svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -1071,6 +1118,7 @@
         id: 26,
         name: "Sniffer / Analizador",
         short: "Sniffer",
+        clue: "Captura e inspecciona paquetes que viajan por la red.",
         category: "Inspección de Tráfico",
         desc: "Herramienta de captura y análisis de paquetes que circulan en tiempo real por la red.",
         svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -1081,6 +1129,7 @@
         id: 27,
         name: "Tarjeta NIC",
         short: "Tarjeta NIC",
+        clue: "Adaptador de hardware que conecta un equipo al cable o Wi-Fi.",
         category: "Adaptador de Red",
         desc: "Controlador de Interfaz de Red que conecta físicamente un equipo al medio de transmisión.",
         svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
@@ -1260,6 +1309,7 @@
         rightTarget: null, // conceptId requerido en extremo derecho
         turnIndex: 0,
         consecutivePasses: 0,
+        lastConnectionInfo: null,
         roundResult: null
       }
     };
@@ -1267,9 +1317,10 @@
     // Inicializar nombre aleatorio sugerido
     document.getElementById('player-name-input').value = 'Nodo_' + Math.floor(100 + Math.random() * 899);
 
-    // Revisar si la URL contiene parámetro ?room=XXXX
+    // Revisar si la URL contiene parámetro ?room=XXXX y habilitar arrastre suave del tablero
     window.addEventListener('DOMContentLoaded', () => {
       renderGlossary();
+      setupBoardPanning();
       const params = new URLSearchParams(window.location.search);
       const roomParam = params.get('room');
       if (roomParam) {
@@ -1280,6 +1331,42 @@
         }
       }
     });
+
+    function setupBoardPanning() {
+      const viewport = document.getElementById('board-viewport');
+      if (!viewport) return;
+      let isDown = false;
+      let startX = 0;
+      let startY = 0;
+      let scrollLeft = 0;
+      let scrollTop = 0;
+
+      viewport.addEventListener('mousedown', (e) => {
+        if (e.target.closest('button')) return;
+        isDown = true;
+        viewport.classList.add('grabbing');
+        startX = e.pageX - viewport.offsetLeft;
+        startY = e.pageY - viewport.offsetTop;
+        scrollLeft = viewport.scrollLeft;
+        scrollTop = viewport.scrollTop;
+      });
+      viewport.addEventListener('mouseleave', () => {
+        isDown = false;
+        viewport.classList.remove('grabbing');
+      });
+      viewport.addEventListener('mouseup', () => {
+        isDown = false;
+        viewport.classList.remove('grabbing');
+      });
+      viewport.addEventListener('mousemove', (e) => {
+        if (!isDown) return;
+        e.preventDefault();
+        const x = e.pageX - viewport.offsetLeft;
+        const y = e.pageY - viewport.offsetTop;
+        viewport.scrollLeft = scrollLeft - (x - startX);
+        viewport.scrollTop = scrollTop - (y - startY);
+      });
+    }
 
     function getSanitizedPlayerName() {
       const raw = document.getElementById('player-name-input').value.trim();
@@ -1298,6 +1385,18 @@
     // -------------------------------------------------------------------------
     // CONEXIÓN MULTIJUGADOR LAN (WebRTC PeerJS + BroadcastChannel)
     // -------------------------------------------------------------------------
+    function canUseExternalPeerServer() {
+      try {
+        if (typeof Peer === 'undefined') return false;
+        // Evitar WebSocket externo en entornos embebidos/sandboxed (ej. Canvas preview)
+        if (window.self !== window.top && window.location.protocol === 'about:') return false;
+        if (window.location.origin === 'null') return false;
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
     function setupBroadcastChannel(code) {
       if (AppState.bc) AppState.bc.close();
       if ('BroadcastChannel' in window) {
@@ -1341,6 +1440,7 @@
         rightTarget: null,
         turnIndex: 0,
         consecutivePasses: 0,
+        lastConnectionInfo: null,
         roundResult: null
       };
 
@@ -1352,36 +1452,40 @@
 
     function initHostPeer(code) {
       if (AppState.peer) AppState.peer.destroy();
-      if (typeof Peer === 'undefined') return;
+      if (!canUseExternalPeerServer()) return;
 
-      const peerId = 'NETDOMINO-LAN-' + code;
-      const peer = new Peer(peerId, { debug: 0 });
-      AppState.peer = peer;
+      try {
+        const peerId = 'NETDOMINO-LAN-' + code;
+        const peer = new Peer(peerId, { debug: 0 });
+        AppState.peer = peer;
 
-      peer.on('open', () => {
-        // Listo para recibir conexiones LAN/Wi-Fi
-      });
-
-      peer.on('connection', (conn) => {
-        conn.on('open', () => {
-          AppState.clientConns[conn.peer] = conn;
-          conn.send({ type: 'STATE_SYNC', state: AppState.game });
+        peer.on('open', () => {
+          // Listo para recibir conexiones LAN/Wi-Fi
         });
 
-        conn.on('data', (data) => {
-          handleIncomingClientMessage(data, (reply) => {
-            if (conn.open) conn.send(reply);
+        peer.on('connection', (conn) => {
+          conn.on('open', () => {
+            AppState.clientConns[conn.peer] = conn;
+            conn.send({ type: 'STATE_SYNC', state: AppState.game });
+          });
+
+          conn.on('data', (data) => {
+            handleIncomingClientMessage(data, (reply) => {
+              if (conn.open) conn.send(reply);
+            });
+          });
+
+          conn.on('close', () => {
+            delete AppState.clientConns[conn.peer];
           });
         });
 
-        conn.on('close', () => {
-          delete AppState.clientConns[conn.peer];
+        peer.on('error', () => {
+          // Fallback silencioso a BroadcastChannel local
         });
-      });
-
-      peer.on('error', () => {
-        // Si PeerJS no puede conectar al servidor de señalización público, BroadcastChannel sigue operando localmente
-      });
+      } catch (err) {
+        // Entorno restringido: continuar con BroadcastChannel local
+      }
     }
 
     function joinLanRoom() {
@@ -1406,37 +1510,45 @@
         });
       }
 
-      // Solicitud vía WebRTC PeerJS (dispositivos en red local Wi-Fi / LAN)
-      if (typeof Peer !== 'undefined') {
-        if (AppState.peer) AppState.peer.destroy();
-        const peer = new Peer({ debug: 0 });
-        AppState.peer = peer;
+      // Solicitud vía WebRTC PeerJS (dispositivos en red local Wi-Fi / LAN cuando está permitido)
+      if (canUseExternalPeerServer()) {
+        try {
+          if (AppState.peer) AppState.peer.destroy();
+          const peer = new Peer({ debug: 0 });
+          AppState.peer = peer;
 
-        peer.on('open', () => {
-          const hostPeerId = 'NETDOMINO-LAN-' + code;
-          const conn = peer.connect(hostPeerId, { reliable: true });
-          AppState.hostConn = conn;
+          peer.on('open', () => {
+            const hostPeerId = 'NETDOMINO-LAN-' + code;
+            const conn = peer.connect(hostPeerId, { reliable: true });
+            AppState.hostConn = conn;
 
-          conn.on('open', () => {
-            conn.send({
-              type: 'JOIN_REQUEST',
-              player: { id: AppState.myId, name: AppState.myName }
+            conn.on('open', () => {
+              conn.send({
+                type: 'JOIN_REQUEST',
+                player: { id: AppState.myId, name: AppState.myName }
+              });
+              showToast(`Conectado a la sala NET-${code}`, 'success');
             });
-            showToast(`Conectado a la sala NET-${code}`, 'success');
+
+            conn.on('data', (data) => {
+              if (data && data.type === 'STATE_SYNC') {
+                applySyncedGameState(data.state);
+              } else if (data && data.type === 'ERROR_MSG') {
+                showToast(data.message, 'error');
+              }
+            });
+
+            conn.on('error', () => {
+              showToast('No se encontró el host remoto. Verificando red local...', 'error');
+            });
           });
 
-          conn.on('data', (data) => {
-            if (data && data.type === 'STATE_SYNC') {
-              applySyncedGameState(data.state);
-            } else if (data && data.type === 'ERROR_MSG') {
-              showToast(data.message, 'error');
-            }
+          peer.on('error', () => {
+            // Fallback silencioso a BroadcastChannel
           });
-
-          conn.on('error', () => {
-            showToast('No se encontró el host remoto. Verificando red local...', 'error');
-          });
-        });
+        } catch (err) {
+          // Ignorar bloqueo de WebSocket en sandbox
+        }
       }
 
       enterLobbyWaitingRoom();
@@ -1503,6 +1615,9 @@
       else if (msg.type === 'PASS_TURN') {
         processPassTurn(msg.playerId);
       }
+      else if (msg.type === 'REQUEST_STATE') {
+        replyFn({ type: 'STATE_SYNC', state: AppState.game });
+      }
     }
 
     function applySyncedGameState(newState) {
@@ -1514,6 +1629,9 @@
 
       if (newState.board.length > prevBoardLen && newState.board.length > 0) {
         SoundFX.playWoodClick();
+        if (newState.lastConnectionInfo) {
+          showToast(newState.lastConnectionInfo, 'success');
+        }
       }
 
       if (newState.phase === 'lobby') {
@@ -1682,6 +1800,7 @@
       AppState.game.leftTarget = null;
       AppState.game.rightTarget = null;
       AppState.game.consecutivePasses = 0;
+      AppState.game.lastConnectionInfo = null;
       AppState.game.roundResult = null;
       AppState.game.phase = 'playing';
 
@@ -1690,6 +1809,8 @@
 
       AppState.selectedTileId = null;
       AppState.lastPlacedTileId = null;
+      AppState.boardZoom = 1.0;
+      document.getElementById('zoom-level-label').textContent = '100%';
 
       document.getElementById('round-over-modal').classList.add('hidden');
       switchToGameScreen();
@@ -1746,12 +1867,16 @@
         });
         g.leftTarget = tile.iconConceptId;
         g.rightTarget = tile.textConceptId;
+        g.lastConnectionInfo = `${currentPlayer.name} abrió la topología.`;
       } else {
         // Determinar lado definitivo
         let side = preferredSide;
         if (side === 'left' && !canLeft) side = 'right';
         if (side === 'right' && !canRight) side = 'left';
         if (!side) side = canRight ? 'right' : 'left';
+
+        const matchedConcept = NETWORK_CONCEPTS[side === 'left' ? g.leftTarget : g.rightTarget];
+        g.lastConnectionInfo = `✓ Enlace validado: ${matchedConcept.short}`;
 
         if (side === 'left') {
           // La mitad DERECHA de la nueva ficha debe tocar el extremo IZQUIERDO existente (g.leftTarget)
@@ -1802,6 +1927,7 @@
       AppState.selectedTileId = null;
 
       SoundFX.playWoodClick();
+      if (g.lastConnectionInfo) showToast(g.lastConnectionInfo, 'success');
       if (navigator.vibrate) navigator.vibrate(25);
 
       // Verificar si el jugador se quedó sin fichas (¡DOMINÓ!)
@@ -1969,8 +2095,7 @@
       if (!canLeft && !canRight) {
         SoundFX.playErrorBuzz();
         const iconName = NETWORK_CONCEPTS[tile.iconConceptId].short;
-        const textName = NETWORK_CONCEPTS[tile.textConceptId].short;
-        showToast(`Esta ficha (${iconName} | ${textName}) no conecta con los extremos actuales.`, 'error');
+        showToast(`Esta ficha (Icono: ${iconName}) no encaja con los extremos actuales.`, 'error');
         return;
       }
 
@@ -2057,28 +2182,41 @@
       const concept = NETWORK_CONCEPTS[half.conceptId];
       if (half.type === 'icon') {
         return `
-          <div class="w-full h-full flex flex-col items-center justify-center p-1.5 text-sky-300 relative" title="Icono: ${concept.name}">
+          <div class="w-full h-full flex flex-col items-center justify-center p-1.5 text-sky-300 relative" title="Icono de red">
             <div class="w-6 h-6 sm:w-7 sm:h-7">${concept.svg}</div>
             ${AppState.showIconLabels ? `<span class="text-[8px] sm:text-[9px] font-mono-tech text-slate-300 leading-none mt-1 truncate max-w-full px-1">${concept.short}</span>` : ''}
           </div>
         `;
       } else {
+        // Mitad de concepto SIN título: muestra exclusivamente la definición descriptiva
+        const textSizeClass = orientation === 'vertical'
+          ? 'text-[8px] sm:text-[8.5px] leading-[1.12]'
+          : 'text-[8.5px] sm:text-[9.5px] leading-[1.15]';
         return `
-          <div class="w-full h-full flex items-center justify-center p-1.5 text-center" title="Concepto: ${concept.name}">
-            <span class="font-mono-tech font-bold text-[10px] sm:text-[11px] leading-tight text-amber-100 break-words">${concept.short}</span>
+          <div class="w-full h-full flex items-center justify-center px-1.5 py-1 text-center overflow-hidden" title="${escapeHtml(concept.clue)}">
+            <span class="${textSizeClass} font-medium text-amber-100">${escapeHtml(concept.clue)}</span>
           </div>
         `;
       }
     }
 
-    function createTileElement(tileObj, extraClasses = '') {
+    function createTileElement(tileObj, extraClasses = '', orientation = 'horizontal') {
       const el = document.createElement('div');
-      el.className = `domino-tile domino-tile-horizontal shrink-0 ${extraClasses}`;
-      el.innerHTML = `
-        <div class="w-1/2 h-full flex items-center justify-center">${renderHalfContent(tileObj.leftHalf)}</div>
-        <div class="domino-divider-h"></div>
-        <div class="w-1/2 h-full flex items-center justify-center">${renderHalfContent(tileObj.rightHalf)}</div>
-      `;
+      if (orientation === 'vertical') {
+        el.className = `domino-tile domino-tile-vertical shrink-0 ${extraClasses}`;
+        el.innerHTML = `
+          <div class="w-full h-1/2 flex items-center justify-center">${renderHalfContent(tileObj.topHalf, 'vertical')}</div>
+          <div class="domino-divider-v"></div>
+          <div class="w-full h-1/2 flex items-center justify-center">${renderHalfContent(tileObj.bottomHalf, 'vertical')}</div>
+        `;
+      } else {
+        el.className = `domino-tile domino-tile-horizontal shrink-0 ${extraClasses}`;
+        el.innerHTML = `
+          <div class="w-1/2 h-full flex items-center justify-center">${renderHalfContent(tileObj.leftHalf, 'horizontal')}</div>
+          <div class="domino-divider-h"></div>
+          <div class="w-1/2 h-full flex items-center justify-center">${renderHalfContent(tileObj.rightHalf, 'horizontal')}</div>
+        `;
+      }
       return el;
     }
 
@@ -2126,32 +2264,38 @@
       const turnDot = document.getElementById('turn-indicator-dot');
       if (g.phase === 'playing' && activePlayer) {
         if (isMyTurn) {
-          turnText.innerHTML = `<span class="text-sky-300 font-bold">¡Es tu turno!</span> Selecciona una ficha iluminada para conectar.`;
+          turnText.innerHTML = `<strong class="text-emerald-300">¡Es tu turno!</strong> Selecciona una ficha iluminada para conectarla.`;
           turnDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping';
         } else {
-          turnText.innerHTML = `Turno de <strong class="text-amber-300">${escapeHtml(activePlayer.name)}</strong>...`;
+          turnText.innerHTML = `Turno de <strong class="text-sky-300">${escapeHtml(activePlayer.name)}</strong> ${activePlayer.isBot ? '(IA pensando...)' : '...'}`;
           turnDot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse';
         }
       }
 
       const openEndsBar = document.getElementById('open-ends-bar');
-      if (g.board.length > 0) {
+      if (g.board.length > 0 && g.leftTarget !== null && g.rightTarget !== null) {
         openEndsBar.classList.remove('hidden');
         openEndsBar.classList.add('flex');
-        document.getElementById('left-target-label').textContent = NETWORK_CONCEPTS[g.leftTarget].short;
-        document.getElementById('right-target-label').textContent = NETWORK_CONCEPTS[g.rightTarget].short;
+        const leftEnd = g.board[0].leftHalf;
+        const rightEnd = g.board[g.board.length - 1].rightHalf;
+        document.getElementById('left-target-label').textContent =
+          leftEnd.type === 'icon' ? `[Icono]` : `"${NETWORK_CONCEPTS[leftEnd.conceptId].clue}"`;
+        document.getElementById('right-target-label').textContent =
+          rightEnd.type === 'icon' ? `[Icono]` : `"${NETWORK_CONCEPTS[rightEnd.conceptId].clue}"`;
       } else {
         openEndsBar.classList.add('hidden');
         openEndsBar.classList.remove('flex');
       }
 
-      // 4. Renderizar Tablero en Serpiente Responsiva
+      // 4. Renderizar Cadena del Tablero (Serpiente continua con esquinas en L)
       renderSnakeBoard(isMyTurn);
 
       // 5. Renderizar Mano del Jugador Local
       renderPlayerHand(me, isMyTurn);
     }
 
+    // Renderiza la cadena continua de dominó con coordenadas geométricas exactas (x, y)
+    // para que las fichas horizontales y las esquinas verticales a 90° se toquen ras con ras.
     function renderSnakeBoard(isMyTurn) {
       const g = AppState.game;
       const emptyPrompt = document.getElementById('empty-board-prompt');
@@ -2161,17 +2305,15 @@
       if (g.board.length === 0) {
         emptyPrompt.classList.remove('hidden');
         wrapper.innerHTML = '';
+        wrapper.style.width = '0px';
+        wrapper.style.height = '0px';
         return;
       }
 
       emptyPrompt.classList.add('hidden');
       wrapper.innerHTML = '';
 
-      // Determinar cuántas fichas caben por fila según el ancho de pantalla
-      const isMobile = window.innerWidth < 640;
-      const tilesPerRow = isMobile ? 2 : (window.innerWidth < 1024 ? 4 : 5);
-
-      // Construir lista de elementos visuales incluyendo zonas de destino si hay ficha seleccionada
+      // Construir lista lineal de piezas incluyendo zonas de destino activas en los extremos
       const items = g.board.map(b => ({ kind: 'tile', data: b }));
 
       let showLeftDrop = false;
@@ -2187,47 +2329,128 @@
       }
 
       if (showLeftDrop) {
-        items.unshift({ kind: 'drop', side: 'left', label: NETWORK_CONCEPTS[g.leftTarget].short });
+        items.unshift({ kind: 'drop', side: 'left' });
       }
       if (showRightDrop) {
-        items.push({ kind: 'drop', side: 'right', label: NETWORK_CONCEPTS[g.rightTarget].short });
+        items.push({ kind: 'drop', side: 'right' });
       }
 
-      // Agrupar en filas en serpiente (Row 0: L->R, Row 1: R->L, Row 2: L->R...)
-      const rows = [];
-      for (let i = 0; i < items.length; i += tilesPerRow) {
-        rows.push(items.slice(i, i + tilesPerRow));
-      }
+      // Dimensiones exactas de las fichas según breakpoint (coinciden con CSS)
+      const isMobile = window.innerWidth < 640;
+      const L = isMobile ? 154 : 186; // Largo de la ficha
+      const W = isMobile ? 72 : 84;   // Ancho de la ficha
+      const GAP = 2;                  // Separación mínima entre bordes
 
-      rows.forEach((rowItems, rowIndex) => {
-        const isReversed = rowIndex % 2 === 1;
-        const rowDiv = document.createElement('div');
-        rowDiv.className = `flex items-center justify-center gap-2 sm:gap-2.5 ${isReversed ? 'flex-row-reverse' : 'flex-row'}`;
+      // Cantidad de fichas horizontales por fila antes de girar 90°
+      const hRunLength = isMobile ? 2 : (window.innerWidth < 1100 ? 3 : 4);
+      const rowWidth = hRunLength * L + (hRunLength - 1) * GAP;
 
-        rowItems.forEach((item) => {
-          if (item.kind === 'drop') {
-            const dropEl = document.createElement('button');
-            dropEl.onclick = () => handleBoardEndZoneClick(item.side);
-            dropEl.className = 'domino-tile-horizontal rounded-xl drop-zone-active flex flex-col items-center justify-center p-2 text-amber-300 shrink-0 transition';
-            dropEl.innerHTML = `
-              <span class="text-[10px] font-mono-tech uppercase tracking-wider font-bold">+ Colocar Aquí</span>
-              <span class="text-xs font-bold text-white mt-0.5">${escapeHtml(item.label)}</span>
-            `;
-            rowDiv.appendChild(dropEl);
-          } else {
-            // Si la fila está invertida visualmente (serpiente), invertimos también las mitades visuales
-            // para mantener continuidad visual de conexión entre fichas adyacentes
-            const tileData = isReversed
-              ? { tileId: item.data.tileId, leftHalf: item.data.rightHalf, rightHalf: item.data.leftHalf }
-              : item.data;
-            const isJustPlaced = tileData.tileId === AppState.lastPlacedTileId;
-            const tileEl = createTileElement(tileData, isJustPlaced ? 'anim-snap' : '');
-            rowDiv.appendChild(tileEl);
-          }
+      const placements = [];
+      let idx = 0;
+      let dir = 1; // 1 = Izquierda -> Derecha, -1 = Derecha -> Izquierda
+      let curY = 0;
+
+      while (idx < items.length) {
+        const runItems = items.slice(idx, idx + hRunLength);
+        idx += runItems.length;
+
+        // Si es la única fila incompleta y no hay giros previos, centrarla
+        const isSinglePartialRow = placements.length === 0 && idx >= items.length;
+        const actualRunWidth = runItems.length * L + (runItems.length - 1) * GAP;
+        const startX = isSinglePartialRow ? (rowWidth - actualRunWidth) / 2 : 0;
+
+        runItems.forEach((item, i) => {
+          const x = dir === 1
+            ? startX + i * (L + GAP)
+            : rowWidth - L - i * (L + GAP);
+
+          placements.push({
+            item,
+            orientation: 'horizontal',
+            dir,
+            x,
+            y: curY
+          });
         });
 
-        wrapper.appendChild(rowDiv);
+        // Si aún quedan fichas, colocar ficha de giro VERTICAL (90°) alineada ras con ras al extremo
+        if (idx < items.length) {
+          const cornerItem = items[idx];
+          idx += 1;
+
+          // La ficha vertical tiene ancho W y alto L, alineada con el borde exterior de la fila
+          const cornerX = dir === 1 ? (rowWidth - W) : 0;
+          const cornerY = curY + W + GAP;
+
+          placements.push({
+            item: cornerItem,
+            orientation: 'vertical',
+            dir,
+            x: cornerX,
+            y: cornerY
+          });
+
+          // Avanzar Y para la siguiente fila horizontal debajo de la ficha vertical
+          curY = cornerY + L + GAP;
+          dir *= -1;
+        }
+      }
+
+      const totalHeight = placements.reduce((maxH, p) => {
+        const h = p.orientation === 'horizontal' ? W : L;
+        return Math.max(maxH, p.y + h);
+      }, 0);
+
+      wrapper.style.width = `${rowWidth}px`;
+      wrapper.style.height = `${totalHeight}px`;
+
+      const firstTileIdx = placements.findIndex(p => p.item.kind === 'tile');
+      let lastTileIdx = -1;
+      placements.forEach((p, i) => { if (p.item.kind === 'tile') lastTileIdx = i; });
+
+      placements.forEach((p, pIdx) => {
+        let el;
+        if (p.item.kind === 'drop') {
+          el = createDropZoneButton(p.item.side, p.orientation);
+        } else {
+          let extra = '';
+          if (p.item.data.tileId === AppState.lastPlacedTileId) extra += ' anim-snap';
+          if (pIdx === firstTileIdx) extra += ' board-open-end-left';
+          if (pIdx === lastTileIdx) extra += ' board-open-end-right';
+
+          if (p.orientation === 'horizontal') {
+            const tileData = p.dir === -1
+              ? { tileId: p.item.data.tileId, leftHalf: p.item.data.rightHalf, rightHalf: p.item.data.leftHalf }
+              : p.item.data;
+            el = createTileElement(tileData, extra.trim(), 'horizontal');
+          } else {
+            // Ficha vertical de giro a 90°: mitad superior conecta con la fila de arriba, mitad inferior con la de abajo
+            const vTileData = {
+              tileId: p.item.data.tileId,
+              topHalf: p.item.data.leftHalf,
+              bottomHalf: p.item.data.rightHalf
+            };
+            el = createTileElement(vTileData, extra.trim(), 'vertical');
+          }
+        }
+
+        el.style.position = 'absolute';
+        el.style.left = `${p.x}px`;
+        el.style.top = `${p.y}px`;
+        wrapper.appendChild(el);
       });
+    }
+
+    function createDropZoneButton(side, orientation) {
+      const dropEl = document.createElement('button');
+      dropEl.onclick = () => handleBoardEndZoneClick(side);
+      const sizeClass = orientation === 'vertical' ? 'domino-tile-vertical' : 'domino-tile-horizontal';
+      dropEl.className = `${sizeClass} rounded-xl drop-zone-active flex flex-col items-center justify-center p-2 text-amber-300 shrink-0 transition`;
+      dropEl.innerHTML = `
+        <span class="text-[10px] font-mono-tech uppercase tracking-wider font-bold text-center">+ Colocar Aquí</span>
+        <span class="text-[11px] font-bold text-white mt-0.5 text-center">${side === 'left' ? 'Extremo Izq' : 'Extremo Der'}</span>
+      `;
+      return dropEl;
     }
 
     function renderPlayerHand(me, isMyTurn) {
@@ -2367,8 +2590,8 @@
             </div>
           </div>
           <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono-tech">
-            <span class="text-slate-500">En su ficha lleva texto:</span>
-            <span class="text-amber-300 font-bold">→ ${nextC.short}</span>
+            <span class="text-slate-500">En su ficha lleva concepto:</span>
+            <span class="text-amber-300 font-bold text-right max-w-[60%] truncate" title="${escapeHtml(nextC.clue)}">→ ${nextC.short}</span>
           </div>
         `;
         grid.appendChild(card);
@@ -2413,6 +2636,17 @@
       document.getElementById('zoom-level-label').textContent = Math.round(AppState.boardZoom * 100) + '%';
       const wrapper = document.getElementById('board-chain-wrapper');
       if (wrapper) wrapper.style.transform = `scale(${AppState.boardZoom})`;
+    }
+
+    function resetBoardView() {
+      AppState.boardZoom = 1.0;
+      document.getElementById('zoom-level-label').textContent = '100%';
+      const wrapper = document.getElementById('board-chain-wrapper');
+      if (wrapper) wrapper.style.transform = 'scale(1)';
+      const viewport = document.getElementById('board-viewport');
+      if (viewport) {
+        viewport.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+      }
     }
 
     function toggleSound() {
